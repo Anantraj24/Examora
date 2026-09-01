@@ -11,13 +11,13 @@ from app.api.v1.api import api_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("🚀 Initializing Database and Core Models...")
+    print("[INFO] Initializing Database and Core Models...")
     await init_db()
-    print("⏰ Starting APScheduler daemon...")
+    print("[INFO] Starting APScheduler daemon...")
     start_scheduler()
     yield
     # Shutdown
-    print("🛑 Shutting down APScheduler...")
+    print("[INFO] Shutting down APScheduler...")
     shutdown_scheduler()
 
 app = FastAPI(

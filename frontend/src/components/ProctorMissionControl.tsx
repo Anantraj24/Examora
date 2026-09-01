@@ -1,101 +1,181 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Radio, ShieldAlert, AlertTriangle, Eye, Users, 
-  ExternalLink, CheckCircle, RefreshCw, BarChart2, UserX, Clock
+  ShieldCheck, AlertTriangle, Eye, Users, 
+  Activity, ArrowUpRight, Search, Sliders, Play, Pause,
+  Radio, CheckCircle2, UserX, Clock
 } from 'lucide-react';
-import { api } from '../services/api';
 import { ProctorAlert } from '../types';
+import { CandidateIncidentDrawer } from './CandidateIncidentDrawer';
+import { api } from '../services/api';
+
+interface CandidateFeed {
+  id: string;
+  student_name: string;
+  exam_title: string;
+  suspicion_score: number;
+  tab_switches: number;
+  face_status: 'single' | 'multiple' | 'absent';
+  gaze_status: 'center' | 'left' | 'right' | 'down';
+  status: 'active' | 'flagged' | 'submitted';
+  avatar_color: string;
+}
 
 export const ProctorMissionControl: React.FC = () => {
-  const [liveSessions, setLiveSessions] = useState<any[]>([
+  const [candidates, setCandidates] = useState<CandidateFeed[]>([
     {
-      session_id: 'sess-001',
+      id: 'c-01',
       student_name: 'Alex Mercer',
-      student_email: 'alex@exam.io',
-      exam_title: 'Advanced Computer Systems & AI Examination (2026)',
-      status: 'IN_PROGRESS',
-      suspicion_score: 12.0,
+      exam_title: 'Adv Computer Systems & AI',
+      suspicion_score: 8,
       tab_switches: 0,
-      time_left: '38:15',
-      anomaly: 'Normal'
+      face_status: 'single',
+      gaze_status: 'center',
+      status: 'submitted',
+      avatar_color: '#6366F1'
     },
     {
-      session_id: 'sess-002',
+      id: 'c-02',
       student_name: 'Priya Sharma',
-      student_email: 'priya@exam.io',
-      exam_title: 'Advanced Computer Systems & AI Examination (2026)',
-      status: 'IN_PROGRESS',
-      suspicion_score: 74.0,
+      exam_title: 'Adv Computer Systems & AI',
+      suspicion_score: 76,
       tab_switches: 3,
-      time_left: '24:50',
-      anomaly: 'Gaze Away & Tab Switch'
+      face_status: 'single',
+      gaze_status: 'right',
+      status: 'active',
+      avatar_color: '#EC4899'
     },
     {
-      session_id: 'sess-003',
+      id: 'c-03',
       student_name: 'Rohan Mehta',
-      student_email: 'rohan@exam.io',
-      exam_title: 'Advanced Computer Systems & AI Examination (2026)',
-      status: 'FLAGGED',
-      suspicion_score: 88.0,
+      exam_title: 'Adv Computer Systems & AI',
+      suspicion_score: 88,
       tab_switches: 4,
-      time_left: '12:04',
-      anomaly: 'Multiple Faces Detected'
+      face_status: 'multiple',
+      gaze_status: 'down',
+      status: 'flagged',
+      avatar_color: '#F59E0B'
     },
     {
-      session_id: 'sess-004',
-      student_name: 'Divya Taneja',
-      student_email: 'divya@exam.io',
-      exam_title: 'Advanced Computer Systems & AI Examination (2026)',
-      status: 'IN_PROGRESS',
-      suspicion_score: 18.0,
+      id: 'c-04',
+      student_name: 'Ananya Joshi',
+      exam_title: 'Deep Learning & Neural Nets',
+      suspicion_score: 14,
       tab_switches: 0,
-      time_left: '31:20',
-      anomaly: 'Normal'
+      face_status: 'single',
+      gaze_status: 'center',
+      status: 'active',
+      avatar_color: '#10B981'
+    },
+    {
+      id: 'c-05',
+      student_name: 'Sahil Kapoor',
+      exam_title: 'Adv Computer Systems & AI',
+      suspicion_score: 52,
+      tab_switches: 2,
+      face_status: 'single',
+      gaze_status: 'left',
+      status: 'submitted',
+      avatar_color: '#8B5CF6'
+    },
+    {
+      id: 'c-06',
+      student_name: 'Divya Taneja',
+      exam_title: 'Deep Learning & Neural Nets',
+      suspicion_score: 22,
+      tab_switches: 1,
+      face_status: 'single',
+      gaze_status: 'center',
+      status: 'active',
+      avatar_color: '#06B6D4'
+    },
+    {
+      id: 'c-07',
+      student_name: 'Vikram Singh',
+      exam_title: 'Distributed Systems & Cloud',
+      suspicion_score: 18,
+      tab_switches: 0,
+      face_status: 'single',
+      gaze_status: 'center',
+      status: 'active',
+      avatar_color: '#F97316'
+    },
+    {
+      id: 'c-08',
+      student_name: 'Neha Reddy',
+      exam_title: 'Distributed Systems & Cloud',
+      suspicion_score: 65,
+      tab_switches: 2,
+      face_status: 'absent',
+      gaze_status: 'center',
+      status: 'active',
+      avatar_color: '#14B8A6'
+    },
+    {
+      id: 'c-09',
+      student_name: 'Chen Wei',
+      exam_title: 'Adv Computer Systems & AI',
+      suspicion_score: 11,
+      tab_switches: 0,
+      face_status: 'single',
+      gaze_status: 'center',
+      status: 'active',
+      avatar_color: '#3B82F6'
     }
   ]);
 
   const [alerts, setAlerts] = useState<ProctorAlert[]>([
     {
-      type: 'PROCTOR_ALERT',
-      session_id: 'sess-003',
+      id: 'alt-01',
+      session_id: 'sess-02',
+      student_name: 'Priya Sharma',
+      event_type: 'TAB_BLUR',
+      severity: 'high',
+      message: 'Browser focus lost: Window minimized or tab switched (3rd occurrence).',
+      timestamp: '10:42:15 AM'
+    },
+    {
+      id: 'alt-02',
+      session_id: 'sess-03',
       student_name: 'Rohan Mehta',
-      exam_title: 'Advanced Computer Systems & AI Examination',
-      suspicion_score: 88.0,
-      events: [{ event_type: 'MULTI_FACE', suspicion_delta: 25.0, message: 'Multiple persons detected in webcam frame (2 faces)' }],
-      timestamp: '2 mins ago'
+      event_type: 'MULTI_FACE',
+      severity: 'high',
+      message: 'Multiple persons detected in webcam frame (2 faces visible).',
+      timestamp: '10:41:02 AM'
     },
     {
-      type: 'PROCTOR_ALERT',
-      session_id: 'sess-002',
-      student_name: 'Priya Sharma',
-      exam_title: 'Advanced Computer Systems & AI Examination',
-      suspicion_score: 74.0,
-      events: [{ event_type: 'GAZE_AWAY', suspicion_delta: 12.0, message: 'Continuous off-screen gaze deviation (RIGHT)' }],
-      timestamp: '5 mins ago'
+      id: 'alt-03',
+      session_id: 'sess-08',
+      student_name: 'Neha Reddy',
+      event_type: 'FACE_ABSENT',
+      severity: 'medium',
+      message: 'Candidate face absent from camera frame for >15s.',
+      timestamp: '10:39:48 AM'
     },
     {
-      type: 'PROCTOR_ALERT',
-      session_id: 'sess-002',
+      id: 'alt-04',
+      session_id: 'sess-02',
       student_name: 'Priya Sharma',
-      exam_title: 'Advanced Computer Systems & AI Examination',
-      suspicion_score: 62.0,
-      events: [{ event_type: 'TAB_BLUR', suspicion_delta: 15.0, message: 'Browser window blur / tab switch event' }],
-      timestamp: '9 mins ago'
+      event_type: 'GAZE_AWAY',
+      severity: 'medium',
+      message: 'Continuous off-screen gaze deviation (RIGHT).',
+      timestamp: '10:38:12 AM'
     }
   ]);
 
-  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateFeed | null>(null);
+  const [filterQuery, setFilterQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'flagged' | 'active'>('all');
 
+  // Load real proctor telemetry from backend if available
   useEffect(() => {
-    // Poll live overview from backend if running
     async function fetchOverview() {
       try {
         const data = await api.getLiveProctorOverview();
-        if (data && data.sessions && data.sessions.length > 0) {
-          setLiveSessions(data.sessions);
+        if (data && data.recent_alerts && data.recent_alerts.length > 0) {
+          setAlerts(data.recent_alerts);
         }
       } catch (e) {
-        // Keeps state populated
+        // Cached overview fallback
       }
     }
     fetchOverview();
@@ -103,139 +183,249 @@ export const ProctorMissionControl: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const totalActive = liveSessions.filter(s => s.status === 'IN_PROGRESS' || s.status === 'FLAGGED').length;
-  const totalFlagged = liveSessions.filter(s => s.suspicion_score >= 60.0).length;
+  const filteredCandidates = candidates.filter((c) => {
+    const matchesQuery = c.student_name.toLowerCase().includes(filterQuery.toLowerCase()) ||
+                         c.exam_title.toLowerCase().includes(filterQuery.toLowerCase());
+    if (statusFilter === 'flagged') return matchesQuery && c.suspicion_score >= 60;
+    if (statusFilter === 'active') return matchesQuery && c.status === 'active';
+    return matchesQuery;
+  });
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem' }}>
-      {/* Top Banner & KPI Stat Cards */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Radio size={22} color="#EF4444" className="animate-pulse-slow" />
-              Proctoring Mission Control & Live Telemetry Hub
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Real-time anomaly ingestion, edge computer vision telemetry, and active integrity scoring.
-            </p>
+    <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '1.5rem' }}>
+      
+      {/* Top Mission Control Header & Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem', marginBottom: '1.75rem' }}>
+        
+        {/* Metric 1: Active In-Session */}
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.15)', color: '#818CF8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={24} />
           </div>
-          <span className="badge badge-emerald">
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
-            Live Ingestion WSS Active
-          </span>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Candidates</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{candidates.filter(c => c.status === 'active').length} / {candidates.length}</div>
+          </div>
         </div>
 
-        {/* 5 Top Summary Metric Cards (Matching PDF Page 6) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Active Sessions</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>{totalActive}</div>
-            <div style={{ fontSize: '0.7rem', color: '#10B981', marginTop: '2px' }}>+4 entered in last 10m</div>
+        {/* Metric 2: Flagged High Suspicion */}
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AlertTriangle size={24} />
           </div>
-
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Exams Scheduled Today</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>12</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>8 completed</div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>High Suspicion Flagged</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#F87171' }}>
+              {candidates.filter(c => c.suspicion_score >= 60).length} Candidates
+            </div>
           </div>
+        </div>
 
-          <div className="glass-panel" style={{ padding: '1rem', borderColor: totalFlagged > 0 ? 'rgba(239, 68, 68, 0.4)' : 'var(--border-subtle)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#F87171', fontWeight: 600, textTransform: 'uppercase' }}>Flagged Sessions</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#EF4444', marginTop: '4px' }}>{totalFlagged}</div>
-            <div style={{ fontSize: '0.7rem', color: '#FCA5A5', marginTop: '2px' }}>Suspicion &gt; 60%</div>
+        {/* Metric 3: Integrity Pass Rate */}
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShieldCheck size={24} />
           </div>
-
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>AI Grading Queue</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#A5B4FC', marginTop: '4px' }}>138</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>94 AI pre-scored</div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Cohort Integrity Index</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#34D399' }}>91.4%</div>
           </div>
+        </div>
 
-          <div className="glass-panel" style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Avg Cohort Score</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#6EE7B7', marginTop: '4px' }}>71.4%</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Across active exams</div>
+        {/* Metric 4: WebSocket Telemetry Rate */}
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(6, 182, 212, 0.15)', color: '#22D3EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Radio size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Heartbeat Ingestion</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800 }}>10s Streamed</div>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Candidate Monitoring Grid (Left) + Real-time Alert Ticker & Breakdown (Right) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '1.5rem', alignItems: 'start' }}>
-        {/* Live Candidate Table */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Live Exam Sessions Stream</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Updated every 6s</span>
+      {/* Main Mission Control Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '1.75rem' }}>
+        
+        {/* Left Column: 3x3 Live Video Stream Grid */}
+        <div>
+          {/* Filter & Search Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                className={`btn ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                onClick={() => setStatusFilter('all')}
+              >
+                All Streams ({candidates.length})
+              </button>
+              <button
+                className={`btn ${statusFilter === 'flagged' ? 'btn-danger' : 'btn-secondary'}`}
+                style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                onClick={() => setStatusFilter('flagged')}
+              >
+                Suspicious ({candidates.filter(c => c.suspicion_score >= 60).length})
+              </button>
+              <button
+                className={`btn ${statusFilter === 'active' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                onClick={() => setStatusFilter('active')}
+              >
+                Live Active ({candidates.filter(c => c.status === 'active').length})
+              </button>
+            </div>
+
+            <div style={{ position: 'relative', width: '260px' }}>
+              <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
+              <input
+                type="text"
+                placeholder="Search candidate name..."
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  borderRadius: '8px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem'
+                }}
+              />
+            </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {liveSessions.map((s, idx) => {
-              const isHigh = s.suspicion_score >= 60;
-              const isMed = s.suspicion_score >= 30 && s.suspicion_score < 60;
+          {/* 3x3 Candidate Stream Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+            {filteredCandidates.map((c) => {
+              const isHighRisk = c.suspicion_score >= 60;
+              const isMediumRisk = c.suspicion_score >= 30 && c.suspicion_score < 60;
+
               return (
                 <div
-                  key={s.session_id || idx}
-                  onClick={() => setSelectedSession(s)}
+                  key={c.id}
+                  className="glass-panel"
+                  onClick={() => setSelectedCandidate(c)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
                     padding: '1rem',
-                    borderRadius: '10px',
-                    background: 'var(--bg-surface)',
-                    border: `1px solid ${isHigh ? 'rgba(239, 68, 68, 0.4)' : 'var(--border-subtle)'}`,
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    border: isHighRisk 
+                      ? '2px solid rgba(239, 68, 68, 0.7)' 
+                      : (isMediumRisk ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--border-subtle)'),
+                    boxShadow: isHighRisk ? '0 0 16px rgba(239, 68, 68, 0.25)' : 'none',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  {/* Candidate Simulated Video Frame */}
+                  <div style={{
+                    position: 'relative',
+                    aspectRatio: '16/10',
+                    background: '#0B0F19',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    marginBottom: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(255,255,255,0.05)'
+                  }}>
+                    {/* Simulated Face mesh box */}
                     <div style={{
-                      width: '42px',
-                      height: '42px',
+                      width: '60px',
+                      height: '75px',
                       borderRadius: '50%',
-                      background: isHigh ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                      color: isHigh ? '#F87171' : '#A5B4FC',
+                      border: `2px ${c.face_status === 'single' ? 'solid #10B981' : (c.face_status === 'multiple' ? 'solid #EF4444' : 'dashed #F59E0B')}`,
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '0.9rem'
+                      color: c.avatar_color,
+                      fontSize: '1.2rem',
+                      fontWeight: 800,
+                      background: 'rgba(255,255,255,0.02)',
+                      boxShadow: c.face_status === 'single' ? '0 0 10px rgba(16, 185, 129, 0.3)' : '0 0 12px rgba(239, 68, 68, 0.4)'
                     }}>
-                      {s.student_name ? s.student_name.split(' ').map((n: string) => n[0]).join('') : 'ST'}
+                      {c.student_name.split(' ').map(n => n[0]).join('')}
                     </div>
 
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{s.student_name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {s.student_email} • Tab switches: <strong style={{ color: s.tab_switches > 0 ? '#F59E0B' : '#64748B' }}>{s.tab_switches}</strong>
-                      </div>
+                    {/* Live Stream Badges */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      background: 'rgba(0,0,0,0.7)',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: c.status === 'active' ? '#10B981' : '#A5B4FC'
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: c.status === 'active' ? '#10B981' : '#A5B4FC' }} />
+                      <span>{c.status === 'active' ? 'REC LIVE' : 'SUBMITTED'}</span>
                     </div>
+
+                    {/* Gaze vector indicator */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '8px',
+                      background: 'rgba(0,0,0,0.7)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '0.68rem',
+                      color: c.gaze_status === 'center' ? '#6EE7B7' : '#FBBF24'
+                    }}>
+                      Gaze: {c.gaze_status.toUpperCase()}
+                    </div>
+
+                    {/* Anomaly Callout */}
+                    {isHighRisk && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        background: 'rgba(239, 68, 68, 0.85)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        color: '#FFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <AlertTriangle size={10} />
+                        FLAGGED
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    {/* Suspicion Bar */}
-                    <div style={{ width: '120px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '3px' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Suspicion</span>
-                        <span style={{ fontWeight: 700, color: isHigh ? '#EF4444' : (isMed ? '#F59E0B' : '#10B981') }}>
-                          {Math.round(s.suspicion_score)}%
-                        </span>
-                      </div>
-                      <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${Math.min(100, s.suspicion_score)}%`,
-                          height: '100%',
-                          background: isHigh ? '#EF4444' : (isMed ? '#F59E0B' : '#10B981'),
-                          borderRadius: '3px',
-                          transition: 'width 0.3s ease'
-                        }} />
-                      </div>
+                  {/* Candidate Information & Suspicion Gauge */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{c.student_name}</h4>
+                      <span className={`badge ${isHighRisk ? 'badge-coral' : (isMediumRisk ? 'badge-amber' : 'badge-emerald')}`} style={{ fontSize: '0.75rem' }}>
+                        {c.suspicion_score}% Suspicion
+                      </span>
                     </div>
 
-                    <span className={`badge ${isHigh ? 'badge-rose' : (isMed ? 'badge-amber' : 'badge-emerald')}`}>
-                      {s.status}
-                    </span>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                      {c.exam_title}
+                    </p>
+
+                    {/* Suspicion Progress Bar */}
+                    <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${c.suspicion_score}%`,
+                        height: '100%',
+                        background: isHighRisk ? '#EF4444' : (isMediumRisk ? '#F59E0B' : '#10B981'),
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
                   </div>
                 </div>
               );
@@ -243,78 +433,63 @@ export const ProctorMissionControl: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Real-Time Incident Feed & Cohort Signal Health */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Real-time Alerts Feed */}
-          <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-              <ShieldAlert size={18} color="#EF4444" />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Proctoring Alerts Ticker</h3>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '360px', overflowY: 'auto' }}>
-              {alerts.map((al, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '0.875rem',
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(239, 68, 68, 0.2)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#FCA5A5' }}>
-                      {al.student_name}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{al.timestamp}</span>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    {al.events[0]?.message}
-                  </div>
-                  <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="font-mono" style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 700 }}>
-                      Suspicion Score: {al.suspicion_score}%
-                    </span>
-                    <button
-                      className="btn btn-outline"
-                      style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                      onClick={() => alert(`Reviewing violation incident for ${al.student_name}`)}
-                    >
-                      Inspect Snapshot
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Right Column: Live Incident Log Stream */}
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Activity size={18} color="#EF4444" />
+              Live Security Ticker
+            </h3>
+            <span className="badge badge-coral">{alerts.length} Incidents</span>
           </div>
 
-          {/* Telemetry Health Stats (From PDF) */}
-          <div className="glass-panel" style={{ padding: '1.25rem' }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-              Cohort Integrity Signal Rates
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Face presence verified</span>
-                <strong style={{ color: '#6EE7B7' }}>91.4%</strong>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            {alerts.map((alt, idx) => (
+              <div
+                key={alt.id || idx}
+                style={{
+                  padding: '1rem',
+                  borderRadius: '10px',
+                  background: alt.severity === 'high' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.1)',
+                  border: `1px solid ${alt.severity === 'high' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.25)'}`,
+                  fontSize: '0.85rem'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: 700, color: '#F8FAFC' }}>{alt.student_name}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{alt.timestamp}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <span className={`badge ${alt.severity === 'high' ? 'badge-coral' : 'badge-amber'}`} style={{ fontSize: '0.7rem' }}>
+                    {alt.event_type.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.4, margin: 0 }}>
+                  {alt.message}
+                </p>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Continuous gaze on-screen</span>
-                <strong style={{ color: '#6EE7B7' }}>78.2%</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Zero tab-switch compliance</span>
-                <strong style={{ color: '#FCD34D' }}>83.0%</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Single face in frame</span>
-                <strong style={{ color: '#6EE7B7' }}>98.6%</strong>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Candidate Inspection & Remote Action Drawer */}
+      <CandidateIncidentDrawer
+        candidate={selectedCandidate}
+        alerts={alerts}
+        onClose={() => setSelectedCandidate(null)}
+        onSendWarning={(cId, msg) => {
+          console.log(`Warning sent to ${cId}: ${msg}`);
+        }}
+        onPauseExam={(cId) => {
+          console.log(`Exam paused for ${cId}`);
+        }}
+        onDisqualify={(cId) => {
+          console.log(`Exam disqualified for ${cId}`);
+        }}
+      />
     </div>
   );
 };

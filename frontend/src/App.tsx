@@ -6,6 +6,7 @@ import { ProctorMissionControl } from './components/ProctorMissionControl';
 import { ExaminerGradingStudio } from './components/ExaminerGradingStudio';
 import { StudentResultsView } from './components/StudentResultsView';
 import { QuestionBankManager } from './components/QuestionBankManager';
+import { ExamBuilderView } from './components/ExamBuilderView';
 import { User, UserRole } from './types';
 import { api } from './services/api';
 
@@ -13,15 +14,24 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('exams');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [resultSessionId, setResultSessionId] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(true);
 
   const [currentUser, setCurrentUser] = useState<User>({
     id: 'user-01',
-    email: 'alex@exam.io',
+    email: 'alex@examora.io',
     full_name: 'Alex Mercer (Candidate)',
     role: 'student',
     is_active: true
   });
+
+  // Auto-login default role on mount
+  useEffect(() => {
+    api.autoLoginAsRole('student')
+      .then((res) => {
+        if (res?.user) setCurrentUser(res.user);
+      })
+      .catch((e) => console.warn('Auto-login on mount', e));
+  }, []);
 
   // Health check to backend API
   useEffect(() => {
@@ -38,37 +48,25 @@ export const App: React.FC = () => {
       }
     }
     checkBackend();
-    const interval = setInterval(checkBackend, 10000);
+    const interval = setInterval(checkBackend, 8000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleSwitchRole = (role: UserRole) => {
+  const handleSwitchRole = async (role: UserRole) => {
+    try {
+      const res = await api.autoLoginAsRole(role);
+      if (res?.user) {
+        setCurrentUser(res.user);
+      }
+    } catch (e) {
+      console.warn('Role switch login error', e);
+    }
+
     if (role === 'student') {
-      setCurrentUser({
-        id: 'user-01',
-        email: 'alex@exam.io',
-        full_name: 'Alex Mercer (Candidate)',
-        role: 'student',
-        is_active: true
-      });
       setCurrentTab('exams');
     } else if (role === 'examiner') {
-      setCurrentUser({
-        id: 'user-02',
-        email: 'examiner@exam.io',
-        full_name: 'Prof. Sarah Connor (Examiner)',
-        role: 'examiner',
-        is_active: true
-      });
       setCurrentTab('grading');
     } else {
-      setCurrentUser({
-        id: 'user-03',
-        email: 'admin@exam.io',
-        full_name: 'Dr. Alan Vance (Admin)',
-        role: 'admin',
-        is_active: true
-      });
       setCurrentTab('proctor');
     }
   };
@@ -84,7 +82,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-base)' }}>
       <Navbar
         currentTab={currentTab}
         setCurrentTab={(tab) => {
@@ -123,6 +121,11 @@ export const App: React.FC = () => {
               setActiveSessionId(null);
               setCurrentTab('exams');
             }}
+          />
+        )}
+        {currentTab === 'builder' && (
+          <ExamBuilderView
+            onExamCreated={() => setCurrentTab('exams')}
           />
         )}
         {currentTab === 'questions' && <QuestionBankManager />}

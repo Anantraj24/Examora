@@ -68,7 +68,7 @@ export interface PaperQuestionView {
   id: string;
   order_index: number;
   question_type: QuestionType;
-  difficulty: DifficultyLevel;
+  difficulty?: DifficultyLevel;
   content: string;
   max_marks: number;
   negative_marks: number;
@@ -83,13 +83,16 @@ export interface PaperQuestionView {
 
 export interface StudentExamPaper {
   session_id: string;
-  session_token: string;
+  session_token?: string;
   exam_id: string;
-  exam_title: string;
+  title?: string;
+  exam_title?: string;
+  subject?: string;
   duration_minutes: number;
   server_deadline: string;
-  server_time_remaining_seconds: number;
-  proctoring_config: Record<string, any>;
+  seconds_remaining?: number;
+  server_time_remaining_seconds?: number;
+  proctoring_config?: Record<string, any>;
   questions: PaperQuestionView[];
 }
 
@@ -106,12 +109,16 @@ export interface ProctorTelemetry {
 }
 
 export interface ProctorAlert {
-  type: string;
+  id?: string;
+  type?: string;
   session_id: string;
   student_name: string;
-  exam_title: string;
-  suspicion_score: number;
-  events: Array<{
+  exam_title?: string;
+  event_type: string;
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  suspicion_score?: number;
+  events?: Array<{
     event_type: string;
     suspicion_delta: number;
     message: string;
@@ -122,6 +129,7 @@ export interface ProctorAlert {
 
 export interface GradingQueueItem {
   answer_id: string;
+  session_id?: string;
   student_id: string;
   student_name: string;
   question_id: string;
@@ -131,16 +139,23 @@ export interface GradingQueueItem {
   model_answer?: string;
   rubric_criteria?: RubricCriterion[];
   student_text?: string;
+  student_text_response?: string;
   image_url?: string;
   ocr_text?: string;
+  ocr_extracted_text?: string;
   ai_suggested_score?: number;
   ai_justification?: string;
-  ai_rubric_breakdown?: {
-    key_concepts_matched?: string[];
-    key_concepts_missed?: string[];
-    content_coverage_ratio?: number;
-    criteria_scores?: Record<string, string>;
+  ai_evaluation?: {
+    suggested_score: number;
+    justification: string;
+    rubric_breakdown?: {
+      key_concepts_matched?: string[];
+      key_concepts_missed?: string[];
+      content_coverage_ratio?: number;
+      criteria_scores?: Record<string, string>;
+    };
   };
+  current_examiner_score?: number;
   final_examiner_score?: number;
   examiner_feedback?: string;
   image_annotations?: Array<{
@@ -153,16 +168,19 @@ export interface GradingQueueItem {
 
 export interface QuestionResultBreakdown {
   question_id: string;
+  order_index?: number;
   question_type: QuestionType;
   question_content: string;
   max_marks: number;
-  negative_marks: number;
-  marks_awarded: number;
+  negative_marks?: number;
+  marks_awarded?: number;
+  score_awarded?: number;
   status?: string;
   is_correct?: boolean;
   selected_options?: string[];
   correct_options?: string[];
   student_text?: string;
+  student_response?: string;
   model_answer?: string;
   examiner_feedback?: string;
   ai_justification?: string;
@@ -172,15 +190,26 @@ export interface QuestionResultBreakdown {
 
 export interface ExamResultData {
   session_id: string;
-  student_name: string;
+  student_name?: string;
   exam_title: string;
+  subject?: string;
   objective_score: number;
   subjective_score: number;
   total_score: number;
   max_possible_score: number;
-  percentage: number;
+  percentage?: number | string;
   percentile: number;
+  integrity_status?: string;
   is_published: boolean;
   evaluated_at: string;
+  cohort_stats?: {
+    mean: number;
+    median: number;
+    standard_deviation: number;
+    distribution: Array<{
+      bracket: string;
+      count: number;
+    }>;
+  };
   question_breakdown: QuestionResultBreakdown[];
 }

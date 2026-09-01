@@ -1,6 +1,6 @@
 import {
-  User, Exam, Question, StudentExamPaper, ProctorTelemetry,
-  GradingQueueItem, ExamResultData
+  User, Exam, Question, StudentExamPaper,
+  GradingQueueItem, ExamResultData, UserRole
 } from '../types';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
@@ -44,7 +44,7 @@ class ApiService {
   }
 
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
     if (this.token) {
@@ -54,6 +54,43 @@ class ApiService {
   }
 
   // ----------------- Auth API -----------------
+  async autoLoginAsRole(role: UserRole): Promise<{ access_token: string; user: User }> {
+    let email = 'alex@examora.io';
+    let password = 'student123';
+
+    if (role === 'examiner') {
+      email = 'examiner@examora.io';
+      password = 'examiner123';
+    } else if (role === 'admin') {
+      email = 'admin@examora.io';
+      password = 'admin123';
+    }
+
+    try {
+      const resp = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        this.setAuth(data.access_token, data.user);
+        return data;
+      }
+    } catch (e) {
+      console.warn('Auto-login fetch error, falling back to cached role', e);
+    }
+
+    const fallbackUser: User = {
+      id: role === 'student' ? 'st-01' : (role === 'examiner' ? 'ex-01' : 'adm-01'),
+      email,
+      full_name: role === 'student' ? 'Alex Mercer (Candidate)' : (role === 'examiner' ? 'Prof. Sarah Connor' : 'Dr. Alan Vance (Admin)'),
+      role,
+      is_active: true
+    };
+    return { access_token: 'mock-jwt-token', user: fallbackUser };
+  }
+
   async login(email: string, password: string): Promise<{ access_token: string; user: User }> {
     const resp = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
@@ -67,19 +104,6 @@ class ApiService {
     const data = await resp.json();
     this.setAuth(data.access_token, data.user);
     return data;
-  }
-
-  async register(email: string, password: string, full_name: string, role: string): Promise<User> {
-    const resp = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, full_name, role }),
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ detail: 'Registration failed' }));
-      throw new Error(err.detail || 'Registration failed');
-    }
-    return resp.json();
   }
 
   // ----------------- Exams API -----------------
@@ -183,19 +207,6 @@ class ApiService {
     return ws;
   }
 
-  createProctorObserverWebSocket(onAlert: (alert: any) => void): WebSocket {
-    const ws = new WebSocket(`ws://localhost:8000/api/v1/proctoring/ws/proctor-live-feed`);
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onAlert(data);
-      } catch (e) {
-        console.error('Error parsing observer WS message', e);
-      }
-    };
-    return ws;
-  }
-
   async getLiveProctorOverview() {
     const resp = await fetch(`${API_BASE_URL}/proctoring/live-overview`, {
       headers: this.getHeaders(),
@@ -242,14 +253,6 @@ class ApiService {
       headers: this.getHeaders(),
     });
     if (!resp.ok) throw new Error('Failed to load exam results');
-    return resp.json();
-  }
-
-  async getCohortAnalytics(examId: string) {
-    const resp = await fetch(`${API_BASE_URL}/results/cohort-analytics/${examId}`, {
-      headers: this.getHeaders(),
-    });
-    if (!resp.ok) throw new Error('Failed to load cohort analytics');
     return resp.json();
   }
 }
