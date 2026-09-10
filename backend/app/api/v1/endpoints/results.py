@@ -79,6 +79,43 @@ async def get_student_exam_result(
         breakdown.append(item_data)
         
     pct = round((res.total_score / max(1.0, res.max_possible_score)) * 100, 1)
+
+    # Compute dynamic cohort stats
+    cohort_q = select(ExamResult).join(ExamSession, ExamResult.session_id == ExamSession.id).where(
+        ExamSession.exam_id == session.exam_id
+    )
+    cohort_res = (await db.execute(cohort_q)).scalars().all()
+    cohort_scores = [r.total_score for r in cohort_res] if cohort_res else [res.total_score]
+    
+    mean_val = round(sum(cohort_scores) / max(1, len(cohort_scores)), 1)
+    sorted_scores = sorted(cohort_scores)
+    mid = len(sorted_scores) // 2
+    median_val = round((sorted_scores[mid] if len(sorted_scores) % 2 != 0 else (sorted_scores[mid - 1] + sorted_scores[mid]) / 2), 1)
+    
+    if len(cohort_scores) > 1:
+        variance = sum((x - mean_val) ** 2 for x in cohort_scores) / (len(cohort_scores) - 1)
+        stdev_val = round(variance ** 0.5, 1)
+    else:
+        stdev_val = 0.0
+
+    b1 = sum(1 for s in cohort_scores if (s / max(1.0, res.max_possible_score)) <= 0.2)
+    b2 = sum(1 for s in cohort_scores if 0.2 < (s / max(1.0, res.max_possible_score)) <= 0.4)
+    b3 = sum(1 for s in cohort_scores if 0.4 < (s / max(1.0, res.max_possible_score)) <= 0.6)
+    b4 = sum(1 for s in cohort_scores if 0.6 < (s / max(1.0, res.max_possible_score)) <= 0.8)
+    b5 = sum(1 for s in cohort_scores if (s / max(1.0, res.max_possible_score)) > 0.8)
+
+    cohort_stats = {
+        "mean": mean_val,
+        "median": median_val,
+        "standard_deviation": stdev_val,
+        "distribution": [
+            {"bracket": "0-20%", "count": b1},
+            {"bracket": "21-40%", "count": b2},
+            {"bracket": "41-60%", "count": b3},
+            {"bracket": "61-80%", "count": b4},
+            {"bracket": "81-100%", "count": b5},
+        ]
+    }
     
     return {
         "session_id": session.id,
@@ -92,6 +129,7 @@ async def get_student_exam_result(
         "percentile": res.percentile,
         "is_published": res.is_published,
         "evaluated_at": res.evaluated_at,
+        "cohort_stats": cohort_stats,
         "question_breakdown": breakdown
     }
 
