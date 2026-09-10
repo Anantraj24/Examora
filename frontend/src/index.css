@@ -245,3 +245,279 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
   background: var(--bg-surface-elevated);
 }
+
+/* ==========================================================================
+   SMART / EXAMORA LUXURY STUDENT DASHBOARD THEME (1:1 Reference Match)
+   ========================================================================== */
+
+.dash-canvas {
+  background: #3452B6;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 90% 85%, rgba(0, 0, 0, 0.2) 0%, transparent 55%);
+  min-height: 100vh;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #1E293B;
+}
+
+.dash-board {
+  background: #F4F6FB;
+  border-radius: 28px;
+  box-shadow: 0 30px 70px -15px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  width: 100%;
+  max-width: 1440px;
+  min-height: 900px;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.dash-board.dark-mode {
+  background: #0B1120;
+  color: #F8FAFC;
+}
+
+/* Left Dock (Icon Strip) */
+.dash-dock {
+  width: 64px;
+  background: #4A6DE8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+  gap: 20px;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.dash-dock-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dash-dock-icon:hover, .dash-dock-icon.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+}
+
+/* Left Drawer (Labels & Logo) */
+.dash-drawer {
+  width: 176px;
+  background: #3B5EDB;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0 24px 18px;
+  flex-shrink: 0;
+  z-index: 4;
+}
+
+.dash-drawer-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #FFFFFF;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 2.2rem;
+  padding-left: 6px;
+}
+
+.dash-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.dash-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 11px 18px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  text-decoration: none;
+  border-radius: 20px 0 0 20px;
+}
+
+.dash-nav-item:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dash-nav-item.active {
+  background: #F4F6FB;
+  color: #1E293B;
+  font-weight: 700;
+}
+.dash-board.dark-mode .dash-nav-item.active {
+  background: #0B1120;
+  color: #F8FAFC;
+}
+
+.dash-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border-bottom-right-radius: 20px;
+  box-shadow: 6px 6px 0 6px #F4F6FB;
+  pointer-events: none;
+}
+.dash-board.dark-mode .dash-nav-item.active::before {
+  box-shadow: 6px 6px 0 6px #0B1120;
+}
+
+.dash-nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border-top-right-radius: 20px;
+  box-shadow: 6px -6px 0 6px #F4F6FB;
+  pointer-events: none;
+}
+.dash-board.dark-mode .dash-nav-item.active::after {
+  box-shadow: 6px -6px 0 6px #0B1120;
+}
+
+/* Card Surface */
+.dash-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 1px solid #E8EEF5;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dash-board.dark-mode .dash-card {
+  background: #172033;
+  border-color: #243049;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Top bar styles */
+.dash-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid #EAEFF6;
+  gap: 1.5rem;
+}
+.dash-board.dark-mode .dash-topbar {
+  border-bottom-color: #1F293D;
+}
+
+.dash-search-box {
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  width: 260px;
+  gap: 10px;
+}
+.dash-board.dark-mode .dash-search-box {
+  background: #172033;
+  border-color: #2D3B55;
+  color: #F8FAFC;
+}
+
+.dash-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #64748B;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s ease;
+}
+.dash-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1E293B;
+}
+.dash-board.dark-mode .dash-icon-btn {
+  color: #94A3B8;
+}
+.dash-board.dark-mode .dash-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.dash-pill-dropdown {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.dash-board.dark-mode .dash-pill-dropdown {
+  background: #172033;
+  border-color: #2D3B55;
+  color: #94A3B8;
+}
+
+/* Two-tone bar chart */
+.bar-chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.bar-cylinder {
+  width: 16px;
+  border-radius: 9999px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #E2E8F0;
+}
+.dash-board.dark-mode .bar-cylinder {
+  background: #2D3B55;
+}
+
+.bar-top {
+  background: #93C5FD;
+  width: 100%;
+}
+.bar-bottom {
+  background: #3B5EDB;
+  width: 100%;
+  border-radius: 0 0 9999px 9999px;
+}
+
