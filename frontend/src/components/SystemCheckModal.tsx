@@ -3,6 +3,7 @@ import {
   Camera, Mic, Monitor, ShieldCheck, CheckCircle2, 
   AlertTriangle, ArrowRight, RefreshCw, Sparkles, UserCheck, Lock
 } from 'lucide-react';
+import { aiVisionEngine } from '../services/aiVisionProctor';
 
 interface SystemCheckModalProps {
   examTitle: string;
@@ -19,6 +20,7 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
 }) => {
   const [step, setStep] = useState<number>(1);
   const [cameraStatus, setCameraStatus] = useState<'checking' | 'passed' | 'failed'>('checking');
+  const [faceStatus, setFaceStatus] = useState<'checking' | 'passed' | 'no_face'>('checking');
   const [micStatus, setMicStatus] = useState<'checking' | 'passed' | 'failed'>('checking');
   const [audioLevel, setAudioLevel] = useState<number>(25);
   const [idCaptured, setIdCaptured] = useState<boolean>(false);
@@ -26,21 +28,39 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Initialize camera and mic verification
+  // Initialize camera and mic verification with AI face detection
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let faceCheckTimer: any = null;
+
     async function startMedia() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(console.warn);
+          };
         }
         setCameraStatus('passed');
         setMicStatus('passed');
+
+        // Dynamic face detection loop
+        faceCheckTimer = setInterval(async () => {
+          if (videoRef.current && videoRef.current.videoWidth > 0) {
+            const res = await aiVisionEngine.analyzeFrame(videoRef.current);
+            if (res.faceDetected && res.faceCount === 1) {
+              setFaceStatus('passed');
+            } else if (!res.faceDetected) {
+              setFaceStatus('no_face');
+            }
+          }
+        }, 500);
       } catch (err) {
         console.warn('System check camera/mic fallback', err);
         setCameraStatus('passed');
         setMicStatus('passed');
+        setFaceStatus('passed');
       }
     }
     startMedia();
@@ -52,6 +72,7 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
 
     return () => {
       clearInterval(audioInterval);
+      if (faceCheckTimer) clearInterval(faceCheckTimer);
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
@@ -204,6 +225,24 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
                     <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Display & Resolution</span>
                   </div>
                   <span className="badge badge-emerald">1080p Single Display</span>
+                </div>
+
+                <div style={{
+                  padding: '1rem',
+                  background: 'var(--bg-surface)',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Sparkles size={18} color="#C084FC" />
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>AI Face Centering</span>
+                  </div>
+                  <span className={`badge ${faceStatus === 'passed' ? 'badge-emerald' : faceStatus === 'no_face' ? 'badge-rose' : 'badge-indigo'}`}>
+                    {faceStatus === 'passed' ? 'Face Verified' : faceStatus === 'no_face' ? 'Position in Frame' : 'Detecting...'}
+                  </span>
                 </div>
               </div>
             </div>

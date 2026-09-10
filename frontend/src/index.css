@@ -251,26 +251,26 @@ input:focus, textarea:focus, select:focus {
    ========================================================================== */
 
 .dash-canvas {
-  background: #3452B6;
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 90% 85%, rgba(0, 0, 0, 0.2) 0%, transparent 55%);
+  background: #F4F6FB;
   min-height: 100vh;
-  padding: 1.5rem;
+  width: 100vw;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
   color: #1E293B;
+  overflow-x: hidden;
 }
 
 .dash-board {
   background: #F4F6FB;
-  border-radius: 28px;
-  box-shadow: 0 30px 70px -15px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  border-radius: 0;
+  box-shadow: none;
   width: 100%;
-  max-width: 1440px;
-  min-height: 900px;
+  max-width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  flex: 1;
   display: flex;
   overflow: hidden;
   position: relative;

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Camera, ShieldAlert, CheckCircle, AlertTriangle, Eye, Users } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Camera, ShieldAlert, Eye, Users } from 'lucide-react';
 import { ProctorTelemetry } from '../types';
+import { aiVisionEngine, FaceDetectionResult } from '../services/aiVisionProctor';
 
 interface WebcamProctorHUDProps {
   sessionId: string;
@@ -15,45 +16,232 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hudCanvasRef = useRef<HTMLCanvasElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   const [hasCamera, setHasCamera] = useState(false);
   const [faceDetected, setFaceDetected] = useState(true);
   const [faceCount, setFaceCount] = useState(1);
   const [gazeDirection, setGazeDirection] = useState<'CENTER' | 'LEFT' | 'RIGHT' | 'UP' | 'DOWN' | 'OFF_SCREEN'>('CENTER');
+  const [gazeScore, setGazeScore] = useState(0.05);
   const [tabHidden, setTabHidden] = useState(false);
-  const [suspicionScore, setSuspicionScore] = useState(0);
+  const [, setSuspicionScore] = useState(0);
   const [lastWarning, setLastWarning] = useState<string | null>(null);
   const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [detectionEngineName, setDetectionEngineName] = useState('AI Vision Active');
 
-  // Initialize Webcam Stream
+  // Consecutive anomaly counters to prevent single-frame flickering warnings
+  const noFaceFramesRef = useRef<number>(0);
+  const multiFaceFramesRef = useRef<number>(0);
+  const gazeAwayFramesRef = useRef<number>(0);
+
+  const triggerViolation = useCallback((msg: string) => {
+    setLastWarning(msg);
+    setWarningModalOpen(true);
+    if (onViolation) onViolation(msg);
+  }, [onViolation]);
+
+  // 1. Initialize Webcam Stream
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let isMounted = true;
+
     async function initCamera() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 320, height: 240, facingMode: 'user' },
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
           audio: false
         });
-        if (videoRef.current) {
+        if (videoRef.current && isMounted) {
           videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(console.warn);
+          };
           setHasCamera(true);
+          setDetectionEngineName('Vision Edge Model');
         }
       } catch (err) {
-        console.warn('Webcam permission denied or not available, using simulated stream', err);
-        setHasCamera(false);
+        console.warn('Webcam permission denied or unavailable, using simulated stream', err);
+        if (isMounted) {
+          setHasCamera(false);
+          setDetectionEngineName('Simulation Mode');
+        }
       }
     }
     initCamera();
 
     return () => {
+      isMounted = false;
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
       }
     };
   }, []);
 
-  // Listen to browser tab visibility and window blur events
+  // 2. Real-Time AI Camera Detection Loop (~300ms cycle)
+  useEffect(() => {
+    let animationFrameId: number;
+    let lastProcessTime = 0;
+    const processInterval = 280; // Run AI detection ~3.5 times per second
+
+    const drawHUD = (res: FaceDetectionResult, vw: number, vh: number) => {
+      const hudCanvas = hudCanvasRef.current;
+      if (!hudCanvas) return;
+      const ctx = hudCanvas.getContext('2d');
+      if (!ctx) return;
+
+      if (hudCanvas.width !== vw || hudCanvas.height !== vh) {
+        hudCanvas.width = vw;
+        hudCanvas.height = vh;
+      }
+
+      ctx.clearRect(0, 0, vw, vh);
+
+      if (!res.faceDetected) {
+        // Draw Red Alert Screen Perimeter
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(4, 4, vw - 8, vh - 8);
+
+        // Warning Label
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+        ctx.font = 'bold 11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('NO CANDIDATE DETECTED', vw / 2, vh / 2);
+        return;
+      }
+
+      // Determine bounding box coordinates
+      const box = res.boundingBox || {
+        x: vw * 0.25,
+        y: vh * 0.2,
+        width: vw * 0.5,
+        height: vh * 0.6
+      };
+
+      const isAlert = res.faceCount > 1 || res.gazeDirection !== 'CENTER';
+      const themeColor = res.faceCount > 1
+        ? '#EF4444'
+        : res.gazeDirection !== 'CENTER'
+          ? '#F59E0B'
+          : '#10B981';
+
+      // Draw Tech Bounding Brackets (Corner ticks)
+      const bx = Math.max(4, Math.min(vw - box.width - 4, box.x));
+      const by = Math.max(4, Math.min(vh - box.height - 4, box.y));
+      const bw = Math.min(vw - bx - 4, box.width);
+      const bh = Math.min(vh - by - 4, box.height);
+      const tickLen = Math.min(16, bw * 0.2, bh * 0.2);
+
+      ctx.strokeStyle = themeColor;
+      ctx.lineWidth = 2.5;
+
+      // Top-Left Corner
+      ctx.beginPath();
+      ctx.moveTo(bx, by + tickLen);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(bx + tickLen, by);
+      ctx.stroke();
+
+      // Top-Right Corner
+      ctx.beginPath();
+      ctx.moveTo(bx + bw - tickLen, by);
+      ctx.lineTo(bx + bw, by);
+      ctx.lineTo(bx + bw, by + tickLen);
+      ctx.stroke();
+
+      // Bottom-Left Corner
+      ctx.beginPath();
+      ctx.moveTo(bx, by + bh - tickLen);
+      ctx.lineTo(bx, by + bh);
+      ctx.lineTo(bx + tickLen, by + bh);
+      ctx.stroke();
+
+      // Bottom-Right Corner
+      ctx.beginPath();
+      ctx.moveTo(bx + bw - tickLen, by + bh);
+      ctx.lineTo(bx + bw, by + bh);
+      ctx.lineTo(bx + bw, by + bh - tickLen);
+      ctx.stroke();
+
+      // Draw Landmarks / Eye dots if available
+      if (res.landmarks && res.landmarks.length > 0) {
+        ctx.fillStyle = themeColor;
+        for (const lm of res.landmarks) {
+          ctx.beginPath();
+          ctx.arc(lm.x, lm.y, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Detection Tag Overlay
+      ctx.fillStyle = themeColor;
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'left';
+      const labelText = isAlert
+        ? res.faceCount > 1 ? `ALERT: ${res.faceCount} FACES` : `GAZE: ${res.gazeDirection}`
+        : `VERIFIED [${Math.round((res.confidence || 0.95) * 100)}%]`;
+      ctx.fillText(labelText, bx + 2, Math.max(12, by - 4));
+    };
+
+    const processLoop = async (timestamp: number) => {
+      if (timestamp - lastProcessTime >= processInterval && videoRef.current && hasCamera) {
+        lastProcessTime = timestamp;
+        try {
+          const video = videoRef.current;
+          if (video.videoWidth > 0) {
+            const res = await aiVisionEngine.analyzeFrame(video);
+
+            setFaceDetected(res.faceDetected);
+            setFaceCount(res.faceCount);
+            setGazeDirection(res.gazeDirection);
+            setGazeScore(res.gazeScore);
+
+            drawHUD(res, video.clientWidth || 320, video.clientHeight || 240);
+
+            // Anomaly tracking logic with debounce (to avoid momentary blink triggers)
+            if (!res.faceDetected) {
+              noFaceFramesRef.current += 1;
+              if (noFaceFramesRef.current === 6) { // ~2 seconds absent
+                triggerViolation('No face detected in webcam view. Please face your screen directly.');
+              }
+            } else {
+              noFaceFramesRef.current = 0;
+            }
+
+            if (res.faceCount > 1) {
+              multiFaceFramesRef.current += 1;
+              if (multiFaceFramesRef.current === 4) {
+                triggerViolation('Multiple people detected in candidate webcam view. Integrity flag logged.');
+              }
+            } else {
+              multiFaceFramesRef.current = 0;
+            }
+
+            if (res.gazeDirection !== 'CENTER') {
+              gazeAwayFramesRef.current += 1;
+              if (gazeAwayFramesRef.current === 7) { // ~2.5 seconds looking away
+                triggerViolation(`Gaze deflected (${res.gazeDirection}). Please focus on the exam screen.`);
+              }
+            } else {
+              gazeAwayFramesRef.current = 0;
+            }
+          }
+        } catch (err) {
+          console.warn('[WebcamProctorHUD] Frame analysis err:', err);
+        }
+      }
+      animationFrameId = requestAnimationFrame(processLoop);
+    };
+
+    animationFrameId = requestAnimationFrame(processLoop);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [hasCamera, triggerViolation]);
+
+  // 3. Tab Visibility & Window Blur
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -81,9 +269,9 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [triggerViolation]);
 
-  // Initialize WebSocket Heartbeat Stream
+  // 4. WebSocket Heartbeat Stream
   useEffect(() => {
     if (!sessionId) return;
     const wsUrl = `ws://localhost:8000/api/v1/proctoring/ws/proctor/${sessionId}`;
@@ -114,7 +302,7 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
         wsRef.current.close();
       }
     };
-  }, [sessionId]);
+  }, [sessionId, triggerViolation]);
 
   const captureSnapshot = (): string | undefined => {
     if (!videoRef.current || !canvasRef.current) return undefined;
@@ -133,13 +321,7 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
     return undefined;
   };
 
-  const triggerViolation = (msg: string) => {
-    setLastWarning(msg);
-    setWarningModalOpen(true);
-    if (onViolation) onViolation(msg);
-  };
-
-  // 10-Second Telemetry Heartbeat Interval
+  // 5. 10-Second Telemetry Heartbeat
   useEffect(() => {
     const interval = setInterval(() => {
       const snapshot = captureSnapshot();
@@ -149,7 +331,7 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
         face_detected: faceDetected,
         face_count: faceCount,
         gaze_direction: gazeDirection,
-        gaze_score: gazeDirection === 'CENTER' ? 0.05 : 0.42,
+        gaze_score: gazeScore,
         tab_hidden: tabHidden,
         window_blurred: tabHidden,
         snapshot_base64: snapshot
@@ -165,9 +347,9 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [sessionId, faceDetected, faceCount, gazeDirection, tabHidden]);
+  }, [sessionId, faceDetected, faceCount, gazeDirection, gazeScore, tabHidden, onTelemetrySent]);
 
-  // Status color logic
+  // Overall status check
   const isOk = faceDetected && faceCount === 1 && gazeDirection === 'CENTER' && !tabHidden;
 
   return (
@@ -193,14 +375,15 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
               height: '8px',
               borderRadius: '50%',
               background: isOk ? '#10B981' : '#EF4444',
-              display: 'inline-block'
+              display: 'inline-block',
+              boxShadow: isOk ? '0 0 6px #10B981' : '0 0 6px #EF4444'
             }} />
             <span style={{ fontWeight: 700, color: isOk ? '#6EE7B7' : '#FDA4AF' }}>
-              {isOk ? 'AI Proctor: Monitored' : 'Anomaly Detected'}
+              {isOk ? 'AI Proctor: Clear' : 'Anomaly Detected'}
             </span>
           </div>
-          <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            10s Heartbeat
+          <span className="font-mono" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+            {detectionEngineName}
           </span>
         </div>
 
@@ -227,6 +410,19 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
             }}
           />
 
+          {/* AI HUD Overlay Canvas */}
+          <canvas
+            ref={hudCanvasRef}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              transform: 'scaleX(-1)'
+            }}
+          />
+
           {!hasCamera && (
             <div style={{
               position: 'absolute',
@@ -246,7 +442,7 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
             </div>
           )}
 
-          {/* Real-Time Detection Bounding Overlay */}
+          {/* Real-Time Detection Telemetry Pill */}
           <div style={{
             position: 'absolute',
             bottom: '6px',
@@ -258,19 +454,19 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
             fontSize: '0.65rem',
             padding: '2px 6px',
             borderRadius: '4px',
-            background: 'rgba(0, 0, 0, 0.7)',
+            background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(4px)'
           }}>
-            <span style={{ color: faceDetected ? '#6EE7B7' : '#FDA4AF' }}>
-              Face: {faceCount} detected
+            <span style={{ color: faceDetected ? '#6EE7B7' : '#FDA4AF', fontWeight: 600 }}>
+              Face: {faceCount === 0 ? 'None' : `${faceCount} detected`}
             </span>
-            <span style={{ color: gazeDirection === 'CENTER' ? '#6EE7B7' : '#FCD34D' }}>
+            <span style={{ color: gazeDirection === 'CENTER' ? '#6EE7B7' : '#FCD34D', fontWeight: 600 }}>
               Gaze: {gazeDirection}
             </span>
           </div>
         </div>
 
-        {/* Hidden Canvas for Snapshots */}
+        {/* Hidden Canvas for JPEG Snapshots */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
         {/* Interactive Simulation Controls (For Live Demo & Testing) */}
@@ -286,7 +482,11 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
             className="btn btn-outline"
             style={{ fontSize: '0.65rem', padding: '3px 6px', flex: 1 }}
             onClick={() => {
-              setGazeDirection(prev => prev === 'CENTER' ? 'OFF_SCREEN' : 'CENTER');
+              setGazeDirection(prev => {
+                const next = prev === 'CENTER' ? 'OFF_SCREEN' : 'CENTER';
+                setGazeScore(next === 'CENTER' ? 0.05 : 0.65);
+                return next;
+              });
             }}
           >
             <Eye size={12} />
