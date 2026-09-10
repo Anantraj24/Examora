@@ -110,3 +110,34 @@ def test_semantic_grader_concept_matching():
     assert result["suggested_score"] > 2.5
     assert "paging" in result["rubric_breakdown"]["key_concepts_matched"]
     assert "frames" in result["rubric_breakdown"]["key_concepts_matched"]
+
+# 5. Proctoring Suspicion Boundary & Compounding Tests
+def test_proctor_telemetry_score_clamping():
+    # Even with huge violations, score should never exceed 100.0
+    compound_payload = ProctorTelemetryPayload(
+        session_id="sess-clamp",
+        face_detected=False,
+        face_count=0,
+        tab_hidden=True,
+        window_blurred=True,
+        gaze_direction="down_left",
+        gaze_score=0.85
+    )
+    score, tabs, events, _ = compute_telemetry_suspicion(compound_payload, current_score=95.0, current_tab_switches=5)
+    assert score <= 100.0
+    assert score == 100.0
+    assert tabs == 6
+    assert len(events) >= 2
+
+def test_proctor_gaze_deflection_detection():
+    payload_gaze = ProctorTelemetryPayload(
+        session_id="sess-gaze",
+        face_detected=True,
+        face_count=1,
+        gaze_direction="right",
+        gaze_score=0.75
+    )
+    score, _, events, _ = compute_telemetry_suspicion(payload_gaze, current_score=10.0, current_tab_switches=0)
+    assert score > 10.0
+    assert any(e["event_type"] == "GAZE_AWAY" for e in events)
+

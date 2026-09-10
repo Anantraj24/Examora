@@ -53,8 +53,9 @@ def compute_telemetry_suspicion(
         })
         
     # 3. Gaze Direction & Eye Tracking Anomaly
-    if payload.face_detected and payload.face_count == 1:
-        if payload.gaze_direction in ["OFF_SCREEN", "LEFT", "RIGHT", "DOWN"] and payload.gaze_score >= settings.GAZE_OUT_OF_BOUNDS_THRESHOLD:
+    if payload.face_detected and payload.face_count == 1 and payload.gaze_direction:
+        gaze_dir = payload.gaze_direction.upper().strip()
+        if gaze_dir in ["OFF_SCREEN", "LEFT", "RIGHT", "DOWN", "UP", "AWAY"] and payload.gaze_score >= settings.GAZE_OUT_OF_BOUNDS_THRESHOLD:
             gaze_penalty = 8.0
             suspicion_delta += gaze_penalty
             triggered_events.append({

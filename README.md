@@ -4,8 +4,9 @@
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00.svg)](https://www.sqlalchemy.org)
+[![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange.svg)](https://alembic.sqlalchemy.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
-[![Tests](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-10%2F10%20Passing-brightgreen.svg)]()
 
 A high-concurrency, enterprise-grade AI-proctored online examination platform built with **Python (FastAPI)**, **SQLAlchemy 2.0 Async**, and **Modern React/Next.js**.
 
@@ -53,7 +54,35 @@ Open **`http://localhost:5173`** in your browser.
 ```bash
 python -m pytest backend/tests -v -o "pythonpath=backend"
 ```
-**7/7 Unit & End-to-End API Lifecycle Integration Tests Passed.**
+**10/10 Unit, Validation Constraints, Edge Cases & API Lifecycle Integration Tests Passed.**
+
+---
+
+## ⚡ High-Concurrency Stress & Load Testing
+```bash
+# Run headless async benchmark simulation
+python scripts/stress_test.py
+
+# Or launch distributed Locust testing
+locust -f backend/tests/locustfile.py --headless -u 50 -r 10 --run-time 1m --host http://localhost:8000
+```
+
+---
+
+## 🗄️ Database Migrations (Alembic)
+```bash
+cd backend
+python -m alembic upgrade head
+```
+
+---
+
+## 📊 Final Project Presentation Deck
+The official 12-slide enterprise project presentation deck conforming to Week 8 specifications is available at:
+- **`AegisExam_AI_Final_Presentation.pptx`**
+- Re-generate anytime using: `python scripts/generate_presentation.py`
+
+For deep-dive architecture diagrams and ER specifications, see: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 

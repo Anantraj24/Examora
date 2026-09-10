@@ -137,3 +137,74 @@ async def test_full_api_lifecycle(client: AsyncClient):
     res_data = res_resp.json()
     assert res_data["total_score"] == 6.5  # 2.0 (MCQ) + 4.5 (Subjective)
     assert res_data["is_published"] is True
+
+@pytest.mark.asyncio
+async def test_question_and_exam_validation_constraints(client: AsyncClient):
+    # Register & login examiner
+    await client.post("/api/v1/auth/register", json={
+        "email": "examiner_val@exam.io",
+        "password": "password123",
+        "full_name": "Val Examiner",
+        "role": "examiner"
+    })
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "examiner_val@exam.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Reject MCQ with no correct options
+    resp_no_corr = await client.post("/api/v1/questions/", json={
+        "subject": "Math",
+        "topic": "Calculus",
+        "question_type": "MCQ",
+        "difficulty": "easy",
+        "content": "What is derivative of x^2?",
+        "max_marks": 2.0,
+        "options": [
+            {"option_text": "x", "is_correct": False},
+            {"option_text": "3x", "is_correct": False}
+        ]
+    }, headers=headers)
+    assert resp_no_corr.status_code == 400
+    assert "exactly 1 correct option" in resp_no_corr.json()["detail"]
+
+    # 2. Reject MCQ with multiple correct options
+    resp_multi_corr = await client.post("/api/v1/questions/", json={
+        "subject": "Math",
+        "topic": "Calculus",
+        "question_type": "MCQ",
+        "difficulty": "easy",
+        "content": "What is derivative of x^2?",
+        "max_marks": 2.0,
+        "options": [
+            {"option_text": "2x", "is_correct": True},
+            {"option_text": "2*x", "is_correct": True}
+        ]
+    }, headers=headers)
+    assert resp_multi_corr.status_code == 400
+    assert "exactly 1 correct option" in resp_multi_corr.json()["detail"]
+
+    # 3. Reject Question with non-positive marks
+    resp_zero_marks = await client.post("/api/v1/questions/", json={
+        "subject": "Math",
+        "topic": "Calculus",
+        "question_type": "short_answer",
+        "difficulty": "easy",
+        "content": "Explain limits",
+        "max_marks": 0.0
+    }, headers=headers)
+    assert resp_zero_marks.status_code == 400
+    assert "Max marks must be greater than 0" in resp_zero_marks.json()["detail"]
+
+    # 4. Reject Exam with non-positive duration
+    resp_invalid_dur = await client.post("/api/v1/exams/", json={
+        "title": "Invalid Exam",
+        "subject": "Math",
+        "instructions": "N/A",
+        "duration_minutes": 0
+    }, headers=headers)
+    assert resp_invalid_dur.status_code == 400
+    assert "Duration must be positive" in resp_invalid_dur.json()["detail"]
+
