@@ -1,7 +1,20 @@
+import socket
 import pytest
 import httpx
 
 BASE_URL = "http://localhost:8000"
+
+def is_server_online(host="127.0.0.1", port=8000) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.3):
+            return True
+    except OSError:
+        return False
+
+pytestmark = pytest.mark.skipif(
+    not is_server_online(),
+    reason="Live backend server is not running on http://localhost:8000"
+)
 
 @pytest.mark.asyncio
 async def test_live_api_health():

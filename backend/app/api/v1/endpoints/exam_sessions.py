@@ -202,6 +202,29 @@ async def get_exam_paper(
         questions=paper_views
     )
 
+@router.get("/{session_id}/time-remaining")
+async def get_session_time_remaining(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    query = select(ExamSession).where(ExamSession.id == session_id)
+    result = await db.execute(query)
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Exam session not found")
+    now = datetime.now(timezone.utc)
+    deadline = session.server_deadline
+    if deadline and deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    remaining_seconds = max(0, int((deadline - now).total_seconds())) if deadline else 0
+    return {
+        "session_id": session.id,
+        "status": session.status,
+        "server_time_remaining_seconds": remaining_seconds,
+        "is_expired": remaining_seconds == 0
+    }
+
 @router.post("/submit-final/{session_id}")
 async def submit_exam_final(
     session_id: str,
