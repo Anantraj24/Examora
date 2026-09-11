@@ -1,4 +1,5 @@
 import os
+import tempfile
 import pytest
 import pytest_asyncio
 from typing import AsyncGenerator
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from app.main import app
 from app.core.database import Base, get_db
 
-TEST_DB_FILE = "./test_exam_platform.db"
+TEST_DB_FILE = os.path.join(tempfile.gettempdir(), f"test_exam_platform_{os.getpid()}.db")
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_FILE}"
 
 test_engine = create_async_engine(
