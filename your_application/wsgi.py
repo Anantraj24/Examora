@@ -1,17 +1,22 @@
 import os
 import sys
 
-# Ensure backend root is in sys.path
-backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend")
-if os.path.exists(backend_dir) and backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+# Ensure backend folder is in python path
+for candidate in [
+    os.path.abspath("backend"),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"),
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    os.path.dirname(os.path.abspath(__file__))
+]:
+    if os.path.exists(candidate) and candidate not in sys.path:
+        sys.path.insert(0, candidate)
 
-# If started by gunicorn on Render, seamlessly handover to native Uvicorn on $PORT
-if any("gunicorn" in arg for arg in sys.argv):
-    port = os.environ.get("PORT", "8000")
-    print(f"[Examora] Gunicorn launcher detected. Handing over directly to native Uvicorn on port {port}...")
-    sys.stdout.flush()
-    os.execv(sys.executable, [sys.executable, "-m", "uvicorn", "app.main:app", "--app-dir", backend_dir, "--host", "0.0.0.0", "--port", str(port)])
+from app.main import app as asgi_app
 
-from app.main import app
-application = app
+try:
+    from a2wsgi import ASGIMiddleware
+    application = ASGIMiddleware(asgi_app)
+except Exception:
+    application = asgi_app
+
+app = application
