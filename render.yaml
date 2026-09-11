@@ -1,0 +1,46 @@
+services:
+  # 1. FastAPI Backend API & WebSocket Service (Free Tier)
+  - type: web
+    name: examora-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
+    startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: PYTHONPATH
+        value: .
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 1440
+      - key: SESSION_TOKEN_EXPIRE_MINUTES
+        value: 180
+      - key: DATABASE_URL
+        sync: false
+        # Optional: Set your free Neon/Supabase PostgreSQL connection string in Render Dashboard
+
+  # 2. Static Frontend Service (Free Tier)
+  - type: web
+    name: examora-frontend
+    env: static
+    region: oregon
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: examora-backend
+          property: host
+          # Render automatically wires the backend URL here!

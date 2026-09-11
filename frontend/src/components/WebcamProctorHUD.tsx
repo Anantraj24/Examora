@@ -274,7 +274,22 @@ export const WebcamProctorHUD: React.FC<WebcamProctorHUDProps> = ({
   // 4. WebSocket Heartbeat Stream
   useEffect(() => {
     if (!sessionId) return;
-    const wsUrl = `ws://localhost:8000/api/v1/proctoring/ws/proctor/${sessionId}`;
+    const defaultWsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let baseWsUrl = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+    if (!baseWsUrl) {
+      const apiEnv = import.meta.env.VITE_API_BASE_URL as string | undefined;
+      if (apiEnv) {
+        try {
+          const parsed = new URL(apiEnv);
+          baseWsUrl = `${parsed.protocol === 'https:' ? 'wss:' : 'ws:'}//${parsed.host}`;
+        } catch (e) {
+          baseWsUrl = `${defaultWsProtocol}//localhost:8000`;
+        }
+      } else {
+        baseWsUrl = `${defaultWsProtocol}//localhost:8000`;
+      }
+    }
+    const wsUrl = `${baseWsUrl.replace(/\/$/, '')}/api/v1/proctoring/ws/proctor/${sessionId}`;
     let ws: WebSocket;
     try {
       ws = new WebSocket(wsUrl);
