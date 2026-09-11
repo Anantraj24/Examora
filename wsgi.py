@@ -9,12 +9,7 @@ for candidate in [
     if os.path.exists(candidate) and candidate not in sys.path:
         sys.path.insert(0, candidate)
 
-from app.main import app as asgi_app
+from app.main import app
 
-try:
-    from a2wsgi import ASGIMiddleware
-    application = ASGIMiddleware(asgi_app)
-except Exception:
-    application = asgi_app
-
-app = application
+# Export native ASGI app for UvicornWorker
+application = app
