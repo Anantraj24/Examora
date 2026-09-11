@@ -127,7 +127,7 @@ class ExamSession(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     exam_id = Column(String(36), ForeignKey("exams.id"), nullable=False)
     student_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    session_token = Column(String(255), unique=True, index=True, nullable=False)
+    session_token = Column(Text, unique=True, index=True, nullable=False)
     status = Column(String(50), default=SessionStatus.NOT_STARTED, nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=True)

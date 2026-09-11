@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.mark.asyncio
 async def test_live_api_health():
     """Verify live system health endpoint."""
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
         response = await client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -28,7 +28,7 @@ async def test_live_api_health():
 @pytest.mark.asyncio
 async def test_live_examiner_login_and_fetch_exams():
     """Verify examiner login and exam listing flow."""
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
         # Login as seeded examiner
         login_res = await client.post("/api/v1/auth/login", json={
             "email": "examiner@examora.io",
@@ -48,7 +48,7 @@ async def test_live_examiner_login_and_fetch_exams():
 @pytest.mark.asyncio
 async def test_live_candidate_exam_flow():
     """Verify candidate authentication, session start, paper fetch, and final submission."""
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
         # 1. Login as student
         student_res = await client.post("/api/v1/auth/login", json={
             "email": "priya@examora.io",
