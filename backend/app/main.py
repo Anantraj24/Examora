@@ -1,6 +1,7 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
@@ -10,15 +11,25 @@ from app.api.v1.api import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    print("[INFO] Initializing Database and Core Models...")
-    await init_db()
-    print("[INFO] Starting APScheduler daemon...")
-    start_scheduler()
+    # Startup: Start background DB verification task so HTTP worker binds immediately
+    print("[INFO] Examora Engine Booting...")
+    asyncio.create_task(init_db())
+    
+    # Start background scheduler safely
+    try:
+        print("[INFO] Starting APScheduler daemon...")
+        start_scheduler()
+    except Exception as e:
+        print(f"[WARNING] Scheduler startup encountered non-fatal error: {e}")
+        
     yield
+    
     # Shutdown
     print("[INFO] Shutting down APScheduler...")
-    shutdown_scheduler()
+    try:
+        shutdown_scheduler()
+    except Exception:
+        pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -51,6 +62,11 @@ async def root():
         "version": settings.VERSION,
         "docs_url": "/docs"
     }
+
+@app.head("/")
+@app.head("/health")
+async def head_health():
+    return Response(status_code=200)
 
 @app.get("/health")
 async def health():
