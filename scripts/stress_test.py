@@ -1,5 +1,5 @@
 """
-AegisExam AI - High-Concurrency Headless Stress & Load Benchmark
+Examora - High-Concurrency Headless Stress & Load Benchmark
 Simulates concurrent students registering, logging in, loading exams,
 saving answers, and testing endpoint throughput and latency.
 """
@@ -65,7 +65,7 @@ async def simulate_student_lifecycle(student_idx: int, transport: ASGITransport)
 
 async def run_stress_benchmark():
     print("=" * 60)
-    print("[*] AEGISEXAM AI - CONCURRENT STRESS & PERFORMANCE BENCHMARK")
+    print("[*] EXAMORA - CONCURRENT STRESS & PERFORMANCE BENCHMARK")
     print(f"Targeting: {TOTAL_CONCURRENT_STUDENTS} concurrent student sessions")
     print(f"Total operations: ~{TOTAL_CONCURRENT_STUDENTS * REQUESTS_PER_STUDENT} API transactions")
     print("=" * 60)

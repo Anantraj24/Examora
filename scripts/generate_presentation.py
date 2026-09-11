@@ -1,6 +1,6 @@
 """
-AegisExam AI - Official Project Final Presentation Generator
-Generates AegisExam_AI_Final_Presentation.pptx conforming to Week 8 project requirements.
+Examora - Official Project Final Presentation Generator
+Generates Examora_Final_Presentation.pptx conforming to Week 8 project requirements.
 """
 import sys
 import os
@@ -17,7 +17,7 @@ from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 
-def create_presentation(output_filename="AegisExam_AI_Final_Presentation.pptx"):
+def create_presentation(output_filename="Examora_Final_Presentation.pptx"):
     prs = Presentation()
     # Set slide dimensions to widescreen (16:9)
     prs.slide_width = Inches(13.333)
@@ -98,7 +98,7 @@ def create_presentation(output_filename="AegisExam_AI_Final_Presentation.pptx"):
     t_tf.word_wrap = True
 
     p0 = t_tf.paragraphs[0]
-    p0.text = "AEGISEXAM AI (EXAMORA)"
+    p0.text = "EXAMORA"
     p0.font.size = Pt(40)
     p0.font.bold = True
     p0.font.color.rgb = ACCENT_CYAN

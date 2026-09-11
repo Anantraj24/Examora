@@ -1,5 +1,5 @@
 /**
- * AegisExam AI Vision Proctor Engine
+ * Examora AI Vision Proctor Engine
  * Multi-tiered edge face detection and gaze tracking:
  * Tier 1: Google MediaPipe Face Detection
  * Tier 2: Native Browser Shape Detection (window.FaceDetector)

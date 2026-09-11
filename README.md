@@ -1,4 +1,4 @@
-# AegisExam AI: Intelligent Examination Platform with Automated Proctoring & Candidate Performance Analysis
+# Examora: Intelligent Examination Platform with Automated Proctoring & Candidate Performance Analysis
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
@@ -79,7 +79,7 @@ python -m alembic upgrade head
 
 ## 📊 Final Project Presentation Deck
 The official 12-slide enterprise project presentation deck conforming to Week 8 specifications is available at:
-- **`AegisExam_AI_Final_Presentation.pptx`**
+- **`Examora_Final_Presentation.pptx`**
 - Re-generate anytime using: `python scripts/generate_presentation.py`
 
 For deep-dive architecture diagrams and ER specifications, see: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
