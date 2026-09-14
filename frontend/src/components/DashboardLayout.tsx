@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   LayoutGrid, BookOpen, Calendar, FolderMinus, MessageSquare, 
   Award, Settings, LogOut, Search, ChevronDown, Mail, Bell, 
-  Sun, Moon, Sparkles, Shield, UserCheck, Bot, Layers, PlusCircle, BarChart2
+  Sun, Moon, Sparkles, Shield, UserCheck, Bot, Layers, PlusCircle, BarChart2,
+  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Menu
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 
@@ -28,6 +29,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Role-Aware Navigation Tabs for seamless sidebar switching
   const getNavItems = () => {
@@ -93,7 +95,27 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     >
       {/* 1. DUAL-TIER LEFT SIDEBAR */}
       {/* 1A: Dock (Icons) */}
-      <div className="dash-dock" style={{ height: '100vh' }}>
+      <div className={`dash-dock ${!isSidebarOpen ? 'drawer-collapsed' : ''}`} style={{ height: '100vh' }}>
+        {/* Toggle Bar Button */}
+        <div 
+          className="dash-dock-toggle-btn"
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          title={isSidebarOpen ? "Close bar" : "Open bar"}
+        >
+          {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+        </div>
+
+        {/* Floating edge handle when collapsed */}
+        {!isSidebarOpen && (
+          <div
+            className="dash-edge-toggle-handle"
+            onClick={() => setIsSidebarOpen(true)}
+            title="Open bar"
+          >
+            <ChevronRight size={13} />
+          </div>
+        )}
+
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
@@ -122,24 +144,46 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </div>
 
       {/* 1B: Drawer (Labels & Logo) */}
-      <div className="dash-drawer" style={{ height: '100vh' }}>
-        {/* Brand Logo */}
-        <div className="dash-drawer-logo">
-          <div style={{
-            width: '26px',
-            height: '26px',
-            borderRadius: '7px',
-            background: '#FFFFFF',
-            color: '#3B5EDB',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 900,
-            fontSize: '0.9rem'
-          }}>
-            ✿
+      <div className={`dash-drawer ${!isSidebarOpen ? 'collapsed' : ''}`} style={{ height: '100vh' }}>
+        {/* Floating edge handle when open */}
+        {isSidebarOpen && (
+          <div
+            className="dash-edge-toggle-handle"
+            onClick={() => setIsSidebarOpen(false)}
+            title="Close bar"
+          >
+            <ChevronLeft size={13} />
           </div>
-          <span>Examora</span>
+        )}
+
+        {/* Brand Logo & Close Bar Button */}
+        <div className="dash-drawer-logo">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '7px',
+              background: '#FFFFFF',
+              color: '#3B5EDB',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 900,
+              fontSize: '0.9rem'
+            }}>
+              ✿
+            </div>
+            <span>Examora</span>
+          </div>
+
+          <button
+            type="button"
+            className="dash-drawer-close-btn"
+            onClick={() => setIsSidebarOpen(false)}
+            title="Close bar"
+          >
+            <ChevronLeft size={16} />
+          </button>
         </div>
 
         {/* Navigation Items List with curved active cutout */}
@@ -177,8 +221,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* TOP BAR */}
         <header className="dash-topbar" style={{ flexShrink: 0 }}>
           
-          {/* Left: Title + Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          {/* Left: Toggle Bar + Title + Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+            <button
+              type="button"
+              className="dash-bar-toggle-header"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              title={isSidebarOpen ? "Close bar" : "Open bar"}
+            >
+              {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            </button>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: isDarkMode ? '#FFFFFF' : '#1E293B' }}>
                 Dashboard for student

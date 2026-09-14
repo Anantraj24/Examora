@@ -289,10 +289,31 @@ input:focus, textarea:focus, select:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 0;
-  gap: 20px;
+  padding: 16px 0;
+  gap: 14px;
   flex-shrink: 0;
-  z-index: 5;
+  z-index: 6;
+  position: relative;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dash-dock-toggle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 6px;
+}
+.dash-dock-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(1.05);
 }
 
 .dash-dock-icon {
@@ -311,27 +332,120 @@ input:focus, textarea:focus, select:focus {
   color: #FFFFFF;
 }
 
+.dash-dock.drawer-collapsed .dash-dock-icon.active {
+  background: #FFFFFF;
+  color: #3B5EDB;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+}
+
 /* Left Drawer (Labels & Logo) */
 .dash-drawer {
-  width: 176px;
+  width: 182px;
   background: #3B5EDB;
   display: flex;
   flex-direction: column;
-  padding: 24px 0 24px 18px;
+  padding: 20px 0 20px 16px;
   flex-shrink: 0;
-  z-index: 4;
+  z-index: 5;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.22s ease;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+.dash-drawer.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .dash-drawer-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding-right: 14px;
   color: #FFFFFF;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  margin-bottom: 2.2rem;
-  padding-left: 6px;
+  margin-bottom: 2rem;
+  padding-left: 4px;
+}
+
+.dash-drawer-close-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dash-drawer-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.08);
+}
+
+/* Floating Edge Toggle Handle on the dividing bar */
+.dash-edge-toggle-handle {
+  position: absolute;
+  top: 24px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3B5EDB;
+  border: 2px solid #FFFFFF;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+.dash-edge-toggle-handle:hover {
+  background: #2546C7;
+  transform: scale(1.15);
+}
+
+/* Header bar toggle button */
+.dash-bar-toggle-header {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #334155;
+  transition: all 0.2s ease;
+}
+.dash-bar-toggle-header:hover {
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transform: scale(1.04);
+}
+.dash-board.dark-mode .dash-bar-toggle-header {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #F8FAFC;
+}
+.dash-board.dark-mode .dash-bar-toggle-header:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .dash-nav-list {
