@@ -12,6 +12,7 @@ interface DashboardLayoutProps {
   currentUser: User;
   onSwitchRole: (role: UserRole) => void;
   isConnected: boolean;
+  onLogout?: () => void;
   children: React.ReactNode;
 }
 
@@ -21,6 +22,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   currentUser,
   onSwitchRole,
   isConnected,
+  onLogout,
   children
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -130,8 +132,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <div style={{ marginTop: 'auto' }}>
           <div 
             className="dash-nav-item" 
-            onClick={() => onSwitchRole('student')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.85 }}
+            onClick={() => onLogout ? onLogout() : onSwitchRole('student')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.85, cursor: 'pointer' }}
           >
             <LogOut size={16} />
             <span>Log Out</span>
@@ -263,7 +265,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   width: '34px',
                   height: '34px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                  background: currentUser.role === 'student'
+                    ? 'linear-gradient(135deg, #06B6D4, #3B82F6)'
+                    : currentUser.role === 'examiner'
+                    ? 'linear-gradient(135deg, #818CF8, #6366F1)'
+                    : 'linear-gradient(135deg, #F59E0B, #EF4444)',
                   color: '#FFFFFF',
                   display: 'flex',
                   alignItems: 'center',
@@ -271,12 +277,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   fontWeight: 700,
                   fontSize: '0.85rem'
                 }}>
-                  GS
+                  {currentUser.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isDarkMode ? '#FFFFFF' : '#1E293B' }}>
-                    Grace Stanley
+                    {currentUser.full_name || 'Candidate'}
                   </span>
                   <span style={{ fontSize: '0.65rem', color: '#3B5EDB', fontWeight: 600, textTransform: 'uppercase' }}>
                     {currentUser.role}
@@ -292,7 +298,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   position: 'absolute',
                   top: '115%',
                   right: 0,
-                  width: '200px',
+                  width: '210px',
                   background: isDarkMode ? '#1E293B' : '#FFFFFF',
                   borderRadius: '14px',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
@@ -322,7 +328,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                       gap: '8px'
                     }}
                   >
-                    <UserCheck size={14} /> Student (Grace Stanley)
+                    <UserCheck size={14} /> Student Portal
                   </button>
 
                   <button
@@ -343,7 +349,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                       gap: '8px'
                     }}
                   >
-                    <Shield size={14} /> Examiner (Prof. Connor)
+                    <Shield size={14} /> Examiner Studio
                   </button>
 
                   <button
@@ -366,6 +372,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   >
                     <Sparkles size={14} /> Admin / Proctor Lead
                   </button>
+
+                  {onLogout && (
+                    <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${isDarkMode ? '#334155' : '#E2E8F0'}` }}>
+                      <button
+                        onClick={() => { setShowRoleDropdown(false); onLogout(); }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          color: '#EF4444',
+                          fontWeight: 600,
+                          fontSize: '0.82rem',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <LogOut size={14} /> Sign Out / Logout
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

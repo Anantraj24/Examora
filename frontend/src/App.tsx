@@ -8,6 +8,7 @@ import { ExaminerGradingStudio } from './components/ExaminerGradingStudio';
 import { StudentResultsView } from './components/StudentResultsView';
 import { QuestionBankManager } from './components/QuestionBankManager';
 import { ExamBuilderView } from './components/ExamBuilderView';
+import { LoginPage } from './components/LoginPage';
 import { User, UserRole } from './types';
 import { api } from './services/api';
 import { BookOpen, Award, Sparkles, MessageSquare, Settings as SettingsIcon } from 'lucide-react';
@@ -18,21 +19,22 @@ export const App: React.FC = () => {
   const [resultSessionId, setResultSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(true);
 
-  const [currentUser, setCurrentUser] = useState<User>({
-    id: 'user-01',
-    email: 'grace@examora.io',
-    full_name: 'Grace Stanley',
-    role: 'student',
-    is_active: true
-  });
+  // Initialize from persistent authentication storage
+  const [currentUser, setCurrentUser] = useState<User | null>(() => api.getCurrentUser());
 
-  // Auto-login default role on mount
+  // Check persistent session on mount
   useEffect(() => {
-    api.autoLoginAsRole('student')
-      .then((res) => {
-        if (res?.user) setCurrentUser(res.user);
-      })
-      .catch((e) => console.warn('Auto-login on mount', e));
+    const cachedUser = api.getCurrentUser();
+    if (cachedUser && api.getToken()) {
+      api.getMe()
+        .then((user) => {
+          if (user) setCurrentUser(user);
+        })
+        .catch(() => {
+          // Token expired or invalid
+          setCurrentUser(null);
+        });
+    }
   }, []);
 
   // Health check to backend API
@@ -73,6 +75,14 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    api.logout();
+    setCurrentUser(null);
+    setActiveSessionId(null);
+    setResultSessionId(null);
+    setCurrentTab('dashboard');
+  };
+
   const handleStartExam = (examId: string) => {
     setActiveSessionId(examId);
   };
@@ -84,11 +94,30 @@ export const App: React.FC = () => {
   };
 
   // If candidate is actively taking an examination, render full-screen proctored environment
-  if (activeSessionId) {
+  if (activeSessionId && currentUser) {
     return (
       <ExamSessionView
         examId={activeSessionId}
         onFinishExam={handleFinishExam}
+      />
+    );
+  }
+
+  // If user is not authenticated, render the dedicated LoginPage
+  if (!currentUser) {
+    return (
+      <LoginPage
+        isConnected={isConnected}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          if (user.role === 'student') {
+            setCurrentTab('dashboard');
+          } else if (user.role === 'examiner') {
+            setCurrentTab('grading');
+          } else {
+            setCurrentTab('proctor');
+          }
+        }}
       />
     );
   }
@@ -103,6 +132,7 @@ export const App: React.FC = () => {
       currentUser={currentUser}
       onSwitchRole={handleSwitchRole}
       isConnected={isConnected}
+      onLogout={handleLogout}
     >
       {/* 1. Main Student Dashboard (Exact 1:1 Reference Match) */}
       {currentTab === 'dashboard' && (

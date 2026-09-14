@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   GraduationCap, Shield, User, Bot, BarChart2, 
-  Layers, PlusCircle, CheckCircle2, Wifi, WifiOff, HelpCircle
+  Layers, PlusCircle, CheckCircle2, Wifi, WifiOff, HelpCircle, LogOut
 } from 'lucide-react';
 import { UserRole, User as UserType } from '../types';
 
@@ -11,6 +11,7 @@ interface NavbarProps {
   currentUser: UserType | null;
   onSwitchRole: (role: UserRole) => void;
   isConnected: boolean;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onSwitchRole,
   isConnected,
+  onLogout,
 }) => {
   return (
     <header style={{
@@ -191,6 +193,78 @@ export const Navbar: React.FC<NavbarProps> = ({
             Admin
           </button>
         </div>
+
+        {/* User Profile Pill & Sign Out */}
+        {currentUser && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            paddingLeft: '10px',
+            borderLeft: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '0.8rem',
+              color: '#FFFFFF'
+            }}>
+              <div style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                background: currentUser.role === 'student' 
+                  ? 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)' 
+                  : currentUser.role === 'examiner' 
+                  ? 'linear-gradient(135deg, #818CF8 0%, #6366F1 100%)' 
+                  : 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '0.75rem',
+                color: '#FFFFFF',
+                boxShadow: '0 0 10px rgba(99, 102, 241, 0.3)'
+              }}>
+                {currentUser.full_name?.charAt(0) || 'U'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+                <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                  {currentUser.full_name?.split(' ')[0] || 'User'}
+                </span>
+                <span style={{ fontSize: '0.65rem', color: '#94A3B8', textTransform: 'capitalize' }}>
+                  {currentUser.role}
+                </span>
+              </div>
+            </div>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 9px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  color: '#FCA5A5',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                title="Sign out of Examora"
+              >
+                <LogOut size={13} />
+                <span>Logout</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

@@ -106,6 +106,40 @@ class ApiService {
     return data;
   }
 
+  async register(data: { email: string; password: string; full_name: string; role: UserRole }): Promise<{ access_token: string; user: User }> {
+    const resp = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Registration failed' }));
+      throw new Error(err.detail || 'Registration failed');
+    }
+    // Automatically log in after registration
+    return this.login(data.email, data.password);
+  }
+
+  async getMe(): Promise<User | null> {
+    if (!this.token) return null;
+    try {
+      const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: this.getHeaders(),
+      });
+      if (resp.ok) {
+        const user = await resp.json();
+        this.currentUser = user;
+        localStorage.setItem('current_user', JSON.stringify(user));
+        return user;
+      } else if (resp.status === 401) {
+        this.logout();
+      }
+    } catch (e) {
+      console.warn('Could not verify /auth/me with backend, using cached session', e);
+    }
+    return this.currentUser;
+  }
+
   // ----------------- Exams API -----------------
   async getExams(publishedOnly = false): Promise<Exam[]> {
     const resp = await fetch(`${API_BASE_URL}/exams/?published_only=${publishedOnly}`, {
