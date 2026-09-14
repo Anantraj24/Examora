@@ -1,4 +1,4 @@
-# Smart: Intelligent Examination Platform with Automated Proctoring & Candidate Performance Analysis
+# Examora: Intelligent Examination Platform with Automated Proctoring & Candidate Performance Analysis
 
 <div align="center">
 
@@ -213,7 +213,7 @@ Create a `.env` file in the project root or configure in your deployment dashboa
 ## 🧪 Testing & Benchmarking
 
 ### Automated Test Suite
-Smart comes with an automated test suite covering unit validation, state constraints, race conditions, and complete exam lifecycles:
+Examora comes with an automated test suite covering unit validation, state constraints, race conditions, and complete exam lifecycles:
 ```bash
 python -m pytest backend/tests -v -o "pythonpath=backend"
 ```
@@ -266,7 +266,7 @@ docker compose down
 
 ## ☁️ Free Cloud Deployment Guide
 
-You can deploy the complete Smart production platform **100% free with zero credit cards**:
+You can deploy the complete Examora production platform **100% free with zero credit cards**:
 
 1. **Database**: [Neon.tech](https://neon.tech) — Free serverless PostgreSQL (pooled connection).
 2. **Backend API & WebSockets**: [Render.com](https://render.com) — Free Web Service running Python 3 (supports WebSockets natively).

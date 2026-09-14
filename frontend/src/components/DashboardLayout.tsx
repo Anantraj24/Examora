@@ -139,7 +139,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           }}>
             ✿
           </div>
-          <span>Smart</span>
+          <span>Examora</span>
         </div>
 
         {/* Navigation Items List with curved active cutout */}

@@ -134,11 +134,11 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   // Calendar .ics download simulator
   const handleExportCalendar = () => {
-    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Smart Intelligent Examination Platform//EN\nBEGIN:VEVENT\nSUMMARY:Algorithms & Advanced Data Structures Final\nDESCRIPTION:Smart AI-Proctored Examination\\nRoom: Virtual Room A-1\nDTSTART:20260915T100000Z\nDTEND:20260915T113000Z\nEND:VEVENT\nEND:VCALENDAR`;
+    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Examora Intelligent Examination Platform//EN\nBEGIN:VEVENT\nSUMMARY:Algorithms & Advanced Data Structures Final\nDESCRIPTION:Examora AI-Proctored Examination\\nRoom: Virtual Room A-1\nDTSTART:20260915T100000Z\nDTEND:20260915T113000Z\nEND:VEVENT\nEND:VCALENDAR`;
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
     link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', 'smart_schedule.ics');
+    link.setAttribute('download', 'examora_schedule.ics');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
