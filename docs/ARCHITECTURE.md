@@ -1,8 +1,8 @@
-# Examora: System Architecture & Technical Specification
+# Smart: System Architecture & Technical Specification
 
 ## 1. Executive Summary
 
-**Examora** is an enterprise-grade, high-concurrency online examination platform designed to provide trustworthy assessment with zero-trust server-side timing, client-edge privacy-preserving AI proctoring, deterministic paper randomization, and LLM-assisted subjective answer grading.
+**Smart** is an enterprise-grade, high-concurrency online examination platform designed to provide trustworthy assessment with zero-trust server-side timing, client-edge privacy-preserving AI proctoring, deterministic paper randomization, and LLM-assisted subjective answer grading.
 
 ---
 

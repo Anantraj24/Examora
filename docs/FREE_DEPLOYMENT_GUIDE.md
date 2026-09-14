@@ -1,4 +1,4 @@
-# 🚀 Complete Free Deployment Guide: Examora
+# 🚀 Complete Free Deployment Guide: Smart
 
 This guide walks you through deploying the complete platform (Frontend, Backend with WebSockets, and Managed Database) **100% free of charge**, requiring zero credit cards.
 

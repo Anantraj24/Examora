@@ -55,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
         <div>
           <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Examora<span style={{ color: 'var(--accent-secondary)' }}>.ai</span>
+            Smart<span style={{ color: 'var(--accent-secondary)' }}>.ai</span>
           </span>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '-2px' }}>
             Enterprise Proctor Engine
@@ -257,7 +257,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   cursor: 'pointer',
                   transition: 'background 0.2s'
                 }}
-                title="Sign out of Examora"
+                title="Sign out of Smart"
               >
                 <LogOut size={13} />
                 <span>Logout</span>

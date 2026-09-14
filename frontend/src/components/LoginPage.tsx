@@ -221,7 +221,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
             letterSpacing: '-0.03em',
             margin: '0 0 0.4rem 0'
           }}>
-            Examora<span style={{ color: '#38BDF8' }}>.ai</span>
+            Smart<span style={{ color: '#38BDF8' }}>.ai</span>
           </h1>
           <p style={{
             color: '#94A3B8',
@@ -891,7 +891,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
 
         {/* Footer info */}
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.72rem', color: '#64748B' }}>
-          Examora Security Engine • End-to-End Encrypted Session Verification • Python FastAPI & React
+          Smart Security Engine • End-to-End Encrypted Session Verification • Python FastAPI & React
         </div>
 
       </div>
