@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutGrid, BookOpen, Calendar, FolderMinus, MessageSquare, 
   Award, Settings, LogOut, Search, ChevronDown, Mail, Bell, 
-  Sun, Moon, Sparkles, Shield, UserCheck
+  Sun, Moon, Sparkles, Shield, UserCheck, Bot, Layers, PlusCircle, BarChart2
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 
@@ -29,16 +29,45 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Primary Navigation Tabs
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { id: 'lessons', label: 'Lessons', icon: BookOpen },
-    { id: 'schedule', label: 'Schedule', icon: Calendar },
-    { id: 'materials', label: 'Materials', icon: FolderMinus },
-    { id: 'forum', label: 'Forum', icon: MessageSquare },
-    { id: 'assessments', label: 'Assessments', icon: Award },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
+  // Role-Aware Navigation Tabs for seamless sidebar switching
+  const getNavItems = () => {
+    if (currentUser.role === 'examiner') {
+      return [
+        { id: 'grading', label: 'Examiner Studio', icon: Bot },
+        { id: 'proctor', label: 'Live Proctoring', icon: Shield },
+        { id: 'schedule', label: 'Schedule', icon: Calendar },
+        { id: 'builder', label: 'Exam Builder', icon: Layers },
+        { id: 'questions', label: 'Question Bank', icon: PlusCircle },
+        { id: 'results', label: 'Cohort Analytics', icon: BarChart2 },
+        { id: 'dashboard', label: 'Student View', icon: LayoutGrid },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ];
+    }
+    if (currentUser.role === 'admin') {
+      return [
+        { id: 'proctor', label: 'Mission Control', icon: Shield },
+        { id: 'grading', label: 'Evaluations', icon: Bot },
+        { id: 'builder', label: 'Blueprint Builder', icon: Layers },
+        { id: 'questions', label: 'Question Bank', icon: PlusCircle },
+        { id: 'schedule', label: 'Master Schedule', icon: Calendar },
+        { id: 'results', label: 'Analytics', icon: BarChart2 },
+        { id: 'dashboard', label: 'Student View', icon: LayoutGrid },
+        { id: 'settings', label: 'System Settings', icon: Settings },
+      ];
+    }
+    // Default: Student / Candidate
+    return [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
+      { id: 'schedule', label: 'Schedule', icon: Calendar },
+      { id: 'assessments', label: 'Exams & Tests', icon: Award },
+      { id: 'results', label: 'My Scorecard', icon: BarChart2 },
+      { id: 'materials', label: 'Materials', icon: FolderMinus },
+      { id: 'forum', label: 'Forum', icon: MessageSquare },
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <div 
@@ -83,8 +112,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <div style={{ marginTop: 'auto' }}>
           <div 
             className="dash-dock-icon" 
-            onClick={() => onSwitchRole('student')}
+            onClick={() => onLogout ? onLogout() : onSwitchRole('student')}
             title="Log Out"
+            style={{ cursor: 'pointer' }}
           >
             <LogOut size={20} />
           </div>

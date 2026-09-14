@@ -111,14 +111,13 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({
           position: 'relative',
           overflow: 'hidden',
           minHeight: '160px',
-          background: '#FFFFFF'
         }}>
           <div style={{ maxWidth: '380px', zIndex: 2 }}>
-            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E293B', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
-              Hello Grace!
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
+              Hello {currentUser.full_name ? currentUser.full_name.split(' ')[0] : 'Candidate'}!
             </h2>
-            <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: 1.4, marginBottom: '0.75rem' }}>
-              You have 3 new tasks. It is a lot of work for today! So let's start!
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.4, marginBottom: '0.75rem' }}>
+              You have active scheduled assessments and coursework. Ready to begin?
             </p>
             <button 
               onClick={() => onNavigateTab('lessons')}

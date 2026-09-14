@@ -521,3 +521,88 @@ input:focus, textarea:focus, select:focus {
   border-radius: 0 0 9999px 9999px;
 }
 
+/* =========================================================================
+   COMPREHENSIVE DARK THEME TEXT & COMPONENT THEMING
+   ========================================================================= */
+.dash-board.dark-mode {
+  background: #0B1120 !important;
+  color: #F8FAFC !important;
+}
+
+.dash-board.dark-mode h1,
+.dash-board.dark-mode h2,
+.dash-board.dark-mode h3,
+.dash-board.dark-mode h4,
+.dash-board.dark-mode h5,
+.dash-board.dark-mode h6 {
+  color: #F8FAFC !important;
+}
+
+.dash-board.dark-mode .dash-card {
+  background: #172033 !important;
+  border-color: #243049 !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dash-board.dark-mode .dash-card h2,
+.dash-board.dark-mode .dash-card h3,
+.dash-board.dark-mode .dash-card h4 {
+  color: #F8FAFC !important;
+}
+
+.dash-board.dark-mode .dash-card p {
+  color: #94A3B8 !important;
+}
+
+/* Inner sub-cards and list items in dark mode */
+.dash-board.dark-mode div[style*="background: #F8FAFC"],
+.dash-board.dark-mode div[style*="background: #F1F5F9"],
+.dash-board.dark-mode div[style*="background: rgb(248, 250, 252)"],
+.dash-board.dark-mode div[style*="background: rgb(241, 245, 249)"] {
+  background: #1E293B !important;
+  border-color: #2D3B55 !important;
+  color: #F8FAFC !important;
+}
+
+.dash-board.dark-mode div[style*="background: #FFFFFF"],
+.dash-board.dark-mode div[style*="background: rgb(255, 255, 255)"] {
+  background: #172033 !important;
+  border-color: #243049 !important;
+  color: #F8FAFC !important;
+}
+
+/* Donut circle track in dark mode */
+.dash-board.dark-mode circle[stroke="#E8EEF5"] {
+  stroke: #2D3B55 !important;
+}
+
+/* Dark mode overrides for hardcoded dark charcoal text */
+.dash-board.dark-mode div[style*="color: #1E293B"],
+.dash-board.dark-mode span[style*="color: #1E293B"],
+.dash-board.dark-mode h2[style*="color: #1E293B"],
+.dash-board.dark-mode h3[style*="color: #1E293B"],
+.dash-board.dark-mode h4[style*="color: #1E293B"],
+.dash-board.dark-mode p[style*="color: #1E293B"] {
+  color: #F8FAFC !important;
+}
+
+/* Buttons inside dash in dark mode */
+.dash-board.dark-mode button[style*="background: #FFFFFF"],
+.dash-board.dark-mode button[style*="background: rgb(255, 255, 255)"] {
+  background: #1E293B !important;
+  color: #F8FAFC !important;
+  border-color: #334155 !important;
+}
+
+/* Top bar title and search in dark mode */
+.dash-board.dark-mode .dash-topbar h1 {
+  color: #F8FAFC !important;
+}
+
+/* Bottom borders in dark mode */
+.dash-board.dark-mode div[style*="border-bottom: 1px solid #F1F5F9"],
+.dash-board.dark-mode div[style*="borderBottom: 1px solid #F1F5F9"] {
+  border-bottom-color: #243049 !important;
+}
+

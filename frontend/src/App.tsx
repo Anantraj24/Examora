@@ -9,6 +9,7 @@ import { StudentResultsView } from './components/StudentResultsView';
 import { QuestionBankManager } from './components/QuestionBankManager';
 import { ExamBuilderView } from './components/ExamBuilderView';
 import { LoginPage } from './components/LoginPage';
+import { ScheduleCalendarView } from './components/ScheduleCalendarView';
 import { User, UserRole } from './types';
 import { api } from './services/api';
 import { BookOpen, Award, Sparkles, MessageSquare, Settings as SettingsIcon } from 'lucide-react';
@@ -143,8 +144,21 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* 2. Lessons & Assessments (Exam List) */}
-      {(currentTab === 'lessons' || currentTab === 'assessments' || currentTab === 'schedule') && (
+      {/* 2. Dedicated Academic & Examination Schedule View */}
+      {currentTab === 'schedule' && (
+        <ScheduleCalendarView
+          currentUser={currentUser}
+          onStartExam={handleStartExam}
+          onViewResults={(sessId) => {
+            setResultSessionId(sessId);
+            setCurrentTab('results');
+          }}
+          onNavigateTab={setCurrentTab}
+        />
+      )}
+
+      {/* 3. Lessons & Assessments (Exam List) */}
+      {(currentTab === 'lessons' || currentTab === 'assessments') && (
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
