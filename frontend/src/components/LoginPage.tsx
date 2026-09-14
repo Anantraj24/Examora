@@ -227,12 +227,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
             color: '#94A3B8',
             fontSize: '0.88rem',
             margin: 0,
-            maxWidth: '380px',
+            maxWidth: '420px',
             marginLeft: 'auto',
             marginRight: 'auto',
             lineHeight: 1.4
           }}>
-            AI-Proctored Intelligent Examination Platform & Performance Analytics
+            AI-Proctored Intelligent Examination Platform. Log in with your credentials or create a new account to get started.
           </p>
 
           {/* Backend Status Indicator */}
@@ -266,7 +266,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
           {/* Navigation Mode Switcher */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1.2fr',
+            gridTemplateColumns: '1fr 1fr 1.1fr',
             borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             background: 'rgba(11, 17, 32, 0.6)'
           }}>
@@ -280,12 +280,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
                 borderBottom: activeTab === 'signin' ? '2px solid #6366F1' : '2px solid transparent',
                 color: activeTab === 'signin' ? '#FFFFFF' : '#94A3B8',
                 fontWeight: activeTab === 'signin' ? 700 : 500,
-                fontSize: '0.85rem',
+                fontSize: '0.88rem',
                 cursor: 'pointer',
                 transition: 'all 0.18s'
               }}
             >
-              Sign In
+              Log In
             </button>
 
             <button
@@ -298,12 +298,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
                 borderBottom: activeTab === 'register' ? '2px solid #6366F1' : '2px solid transparent',
                 color: activeTab === 'register' ? '#FFFFFF' : '#94A3B8',
                 fontWeight: activeTab === 'register' ? 700 : 500,
-                fontSize: '0.85rem',
+                fontSize: '0.88rem',
                 cursor: 'pointer',
                 transition: 'all 0.18s'
               }}
             >
-              Register
+              Create Account
             </button>
 
             <button
@@ -326,11 +326,76 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
               }}
             >
               <Gamepad2 size={15} />
-              <span>Neural Game</span>
+              <span>Mini-Game</span>
             </button>
           </div>
 
           <div style={{ padding: '2rem' }}>
+
+            {/* Contextual Guidance Banner */}
+            {activeTab === 'signin' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(99, 102, 241, 0.08)',
+                border: '1px solid rgba(99, 102, 241, 0.2)',
+                fontSize: '0.78rem',
+                color: '#CBD5E1',
+                marginBottom: '1.25rem'
+              }}>
+                <span>Have an account? Log in below.</span>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('register'); setErrorMessage(null); }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#38BDF8',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Need to create an account?
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'register' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                fontSize: '0.78rem',
+                color: '#CBD5E1',
+                marginBottom: '1.25rem'
+              }}>
+                <span>New here? Fill in your details to create an account.</span>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('signin'); setErrorMessage(null); }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#818CF8',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Already registered? Log in
+                </button>
+              </div>
+            )}
 
             {/* Error Notification */}
             {errorMessage && (
@@ -504,6 +569,35 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
                     </>
                   )}
                 </button>
+
+                {/* Switch to Register footer link */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginTop: '0.75rem',
+                  fontSize: '0.84rem',
+                  color: '#94A3B8'
+                }}>
+                  <span>Don't have an account?</span>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('register'); setErrorMessage(null); }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#38BDF8',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontSize: '0.84rem',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Create an account
+                  </button>
+                </div>
               </form>
             )}
 
@@ -676,6 +770,35 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
                     </>
                   )}
                 </button>
+
+                {/* Switch to Sign In footer link */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginTop: '0.75rem',
+                  fontSize: '0.84rem',
+                  color: '#94A3B8'
+                }}>
+                  <span>Already have an account?</span>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('signin'); setErrorMessage(null); }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#818CF8',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontSize: '0.84rem',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Log In here
+                  </button>
+                </div>
               </form>
             )}
 
