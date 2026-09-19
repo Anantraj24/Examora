@@ -1029,28 +1029,28 @@ The **RBAC + dashboard issues should be fixed before the exam workflow**. Severa
 
 ## Completion Checklist
 
-- [ ] Authentication performance fixed
-- [ ] Proctoring fixed
-- [ ] Fullscreen fixed
-- [ ] Schedule synchronization fixed
-- [ ] Materials search added/fixed
-- [ ] Forum search added/fixed
-- [ ] Language switcher fixed
-- [ ] MCQ/Inbox search fixed
-- [ ] Notification click fixed
-- [ ] Upcoming Events fixed
-- [ ] Examiner Studio fixed
-- [ ] Exam status lifecycle fixed
-- [ ] Student Schedule fixed
-- [ ] Start Proctored Exam fixed
-- [ ] Question Bank subject filter fixed
-- [ ] Cohort Analysis fixed
-- [ ] Role-based routing fixed
-- [ ] Admin/Proctor Lead views audited
-- [ ] RBAC completed
-- [ ] Role-specific dashboards verified
-- [ ] Full regression audit completed
-- [ ] Build passes
-- [ ] Lint passes
-- [ ] Typecheck passes
-- [ ] Tests pass
+- [x] Authentication performance fixed
+- [x] Proctoring fixed
+- [x] Fullscreen fixed
+- [x] Schedule synchronization fixed
+- [x] Materials search added/fixed
+- [x] Forum search added/fixed
+- [x] Language switcher fixed
+- [x] MCQ/Inbox search fixed
+- [x] Notification click fixed
+- [x] Upcoming Events fixed
+- [x] Examiner Studio fixed
+- [x] Exam status lifecycle fixed
+- [x] Student Schedule fixed
+- [x] Start Proctored Exam fixed
+- [x] Question Bank subject filter fixed
+- [x] Cohort Analysis fixed
+- [x] Role-based routing fixed
+- [x] Admin/Proctor Lead views audited
+- [x] RBAC completed
+- [x] Role-specific dashboards verified
+- [x] Full regression audit completed
+- [x] Build passes
+- [x] Lint passes
+- [x] Typecheck passes
+- [x] Tests pass
