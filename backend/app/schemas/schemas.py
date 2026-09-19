@@ -290,3 +290,47 @@ class MaterialOut(MaterialBase):
     
     model_config = ConfigDict(from_attributes=True)
 
+# ----------------- Forum Schemas -----------------
+class ForumReplyCreate(BaseModel):
+    content: str
+
+class ForumReplyOut(BaseModel):
+    id: str
+    post_id: str
+    author_name: str
+    author_id: Optional[str] = None
+    author_role: str = "student"
+    content: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class ForumPostBase(BaseModel):
+    title: str
+    content: str
+    subject: str = "Computer Science"
+    tag: str = "Question"
+
+class ForumPostCreate(ForumPostBase):
+    pass
+
+class ForumPostOut(ForumPostBase):
+    id: str
+    author_name: str
+    author_id: Optional[str] = None
+    author_role: str = "student"
+    replies_count: int = 0
+    upvotes: int = 0
+    created_at: datetime
+    replies: Optional[List[ForumReplyOut]] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class ForumPaginatedOut(BaseModel):
+    items: List[ForumPostOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+

@@ -427,5 +427,93 @@ async def test_materials_search_and_crud(client: AsyncClient):
     assert not any(m["id"] == mat_id for m in res_after_del.json())
 
 
+@pytest.mark.asyncio
+async def test_forum_search_pagination_and_replies(client: AsyncClient):
+    # 1. Register Student
+    reg_st = await client.post("/api/v1/auth/register", json={
+        "email": "forum_student@exam.io",
+        "password": "password123",
+        "full_name": "Forum Student",
+        "role": "student"
+    })
+    assert reg_st.status_code == 201
+    
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "forum_student@exam.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Get initial paginated posts
+    res_all = await client.get("/api/v1/forum/?page=1&page_size=3", headers=headers)
+    assert res_all.status_code == 200
+    data_all = res_all.json()
+    assert len(data_all["items"]) == 3
+    assert data_all["total"] >= 5
+    assert data_all["total_pages"] >= 2
+
+    # 3. Exact and case-insensitive search
+    res_search1 = await client.get("/api/v1/forum/?q=B-TREE", headers=headers)
+    assert res_search1.status_code == 200
+    assert any("B-Tree" in item["title"] for item in res_search1.json()["items"])
+
+    # 4. Partial search across content
+    res_search2 = await client.get("/api/v1/forum/?q=pigeonhole", headers=headers)
+    assert res_search2.status_code == 200
+    assert len(res_search2.json()["items"]) >= 1
+
+    # 5. Search with no results
+    res_empty = await client.get("/api/v1/forum/?q=nonexistentforumsearchkeyword777", headers=headers)
+    assert res_empty.status_code == 200
+    assert len(res_empty.json()["items"]) == 0
+    assert res_empty.json()["total"] == 0
+
+    # 6. Search + subject & tag filter
+    res_filt = await client.get("/api/v1/forum/?q=Dijkstra&subject=Computer Science&tag=Exam Prep", headers=headers)
+    assert res_filt.status_code == 200
+    assert len(res_filt.json()["items"]) >= 1
+
+    # 7. Create new discussion post
+    res_create = await client.post("/api/v1/forum/", json={
+        "title": "Discussion on Byzantine Fault Tolerance",
+        "content": "How does PBFT achieve safety under partial synchrony with 3f + 1 nodes?",
+        "subject": "Distributed Systems",
+        "tag": "Discussion"
+    }, headers=headers)
+    assert res_create.status_code == 201
+    new_post = res_create.json()
+    post_id = new_post["id"]
+
+    # Verify search finds the newly created post
+    res_find_new = await client.get("/api/v1/forum/?q=Byzantine", headers=headers)
+    assert res_find_new.status_code == 200
+    assert any(p["id"] == post_id for p in res_find_new.json()["items"])
+
+    # 8. Add a reply to the new post
+    res_reply = await client.post(f"/api/v1/forum/{post_id}/replies", json={
+        "content": "PBFT uses 3-phase commit: pre-prepare, prepare, and commit to reach consensus."
+    }, headers=headers)
+    assert res_reply.status_code == 201
+    assert res_reply.json()["post_id"] == post_id
+
+    # Verify post replies_count incremented
+    res_post_detail = await client.get(f"/api/v1/forum/{post_id}", headers=headers)
+    assert res_post_detail.status_code == 200
+    detail = res_post_detail.json()
+    assert detail["replies_count"] == 1
+    assert len(detail["replies"]) == 1
+
+    # 9. Delete post
+    del_res = await client.delete(f"/api/v1/forum/{post_id}", headers=headers)
+    assert del_res.status_code == 200
+
+    # Verify deleted post no longer appears
+    res_after_del = await client.get("/api/v1/forum/?q=Byzantine", headers=headers)
+    assert res_after_del.status_code == 200
+    assert not any(p["id"] == post_id for p in res_after_del.json()["items"])
+
+
+
 
 

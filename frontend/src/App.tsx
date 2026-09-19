@@ -16,6 +16,7 @@ const QuestionBankManager = lazy(() => import('./components/QuestionBankManager'
 const ExamBuilderView = lazy(() => import('./components/ExamBuilderView').then(m => ({ default: m.ExamBuilderView })));
 const ScheduleCalendarView = lazy(() => import('./components/ScheduleCalendarView').then(m => ({ default: m.ScheduleCalendarView })));
 const MaterialsView = lazy(() => import('./components/MaterialsView').then(m => ({ default: m.MaterialsView })));
+const ForumView = lazy(() => import('./components/ForumView').then(m => ({ default: m.ForumView })));
 
 const ViewLoadingFallback: React.FC = () => (
   <div style={{
@@ -265,30 +266,7 @@ export const App: React.FC = () => {
       )}
 
       {currentTab === 'forum' && (
-        <div style={{ padding: '2rem' }}>
-          <div className="dash-card">
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <MessageSquare size={20} color="#3B5EDB" /> Academic Discussion Forum
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#64748B', marginBottom: '1.5rem' }}>
-              Engage with mentors, teaching assistants, and classmates regarding course concepts and practice problems.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                { title: 'Question regarding B-Tree median split criteria in order 3', author: 'Alex Mercer', replies: 4 },
-                { title: 'Quorum consensus read/write overlapping proof discussion', author: 'Mary Johnson (mentor)', replies: 9 }
-              ].map((post, i) => (
-                <div key={i} style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700 }}>{post.title}</h4>
-                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Posted by {post.author}</span>
-                  </div>
-                  <span style={{ fontSize: '0.8rem', color: '#3B5EDB', fontWeight: 700 }}>{post.replies} replies</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ForumView currentUser={currentUser} />
       )}
 
       {currentTab === 'settings' && (

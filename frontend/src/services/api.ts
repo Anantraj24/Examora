@@ -1,6 +1,7 @@
 import {
   User, Exam, Question, StudentExamPaper,
-  GradingQueueItem, ExamResultData, UserRole, CourseMaterial
+  GradingQueueItem, ExamResultData, UserRole, CourseMaterial,
+  ForumPost, ForumReply, ForumPaginatedResponse
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000/api/v1';
@@ -277,6 +278,76 @@ class ApiService {
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: 'Failed to delete material' }));
       throw new Error(err.detail || 'Failed to delete material');
+    }
+    return resp.json();
+  }
+
+  // ----------------- Discussion Forum API -----------------
+  async getForumPosts(params?: {
+    q?: string;
+    subject?: string;
+    tag?: string;
+    sort_by?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<ForumPaginatedResponse> {
+    const query = new URLSearchParams();
+    if (params?.q) query.append('q', params.q.trim());
+    if (params?.subject && params.subject !== 'All') query.append('subject', params.subject);
+    if (params?.tag && params.tag !== 'All') query.append('tag', params.tag);
+    if (params?.sort_by) query.append('sort_by', params.sort_by);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.page_size) query.append('page_size', params.page_size.toString());
+
+    const qs = query.toString();
+    const url = `${API_BASE_URL}/forum/${qs ? '?' + qs : ''}`;
+    const resp = await fetch(url, { headers: this.getHeaders() });
+    if (!resp.ok) throw new Error('Failed to fetch forum discussions');
+    return resp.json();
+  }
+
+  async getForumPost(postId: string): Promise<ForumPost> {
+    const resp = await fetch(`${API_BASE_URL}/forum/${postId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) throw new Error('Failed to fetch discussion details');
+    return resp.json();
+  }
+
+  async createForumPost(postData: { title: string; content: string; subject: string; tag: string }): Promise<ForumPost> {
+    const resp = await fetch(`${API_BASE_URL}/forum/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(postData),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to create discussion post' }));
+      throw new Error(err.detail || 'Failed to create discussion post');
+    }
+    return resp.json();
+  }
+
+  async addForumReply(postId: string, content: string): Promise<ForumReply> {
+    const resp = await fetch(`${API_BASE_URL}/forum/${postId}/replies`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ content }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to post reply' }));
+      throw new Error(err.detail || 'Failed to post reply');
+    }
+    return resp.json();
+  }
+
+  async deleteForumPost(postId: string): Promise<{ message: string; id: string }> {
+    const resp = await fetch(`${API_BASE_URL}/forum/${postId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to delete discussion' }));
+      throw new Error(err.detail || 'Failed to delete discussion');
     }
     return resp.json();
   }

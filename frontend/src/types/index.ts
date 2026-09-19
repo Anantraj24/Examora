@@ -76,6 +76,39 @@ export interface CourseMaterial {
   created_at?: string;
 }
 
+export interface ForumReply {
+  id: string;
+  post_id: string;
+  author_name: string;
+  author_id?: string;
+  author_role: string;
+  content: string;
+  created_at: string;
+}
+
+export interface ForumPost {
+  id: string;
+  title: string;
+  content: string;
+  subject: string;
+  tag: string;
+  author_name: string;
+  author_id?: string;
+  author_role: string;
+  replies_count: number;
+  upvotes: number;
+  created_at: string;
+  replies?: ForumReply[];
+}
+
+export interface ForumPaginatedResponse {
+  items: ForumPost[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export interface PaperQuestionView {
   id: string;
   order_index: number;

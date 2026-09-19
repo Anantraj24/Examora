@@ -218,3 +218,34 @@ class CourseMaterial(Base):
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=get_utc_now)
 
+class ForumPost(Base):
+    __tablename__ = "forum_posts"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    subject = Column(String(100), nullable=False, default="Computer Science", index=True)
+    tag = Column(String(50), nullable=False, default="Question", index=True)
+    author_name = Column(String(100), nullable=False)
+    author_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    author_role = Column(String(50), default="student")
+    replies_count = Column(Integer, default=0)
+    upvotes = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+    
+    replies = relationship("ForumReply", back_populates="post", cascade="all, delete-orphan", order_by="ForumReply.created_at.asc()")
+
+class ForumReply(Base):
+    __tablename__ = "forum_replies"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    post_id = Column(String(36), ForeignKey("forum_posts.id"), nullable=False, index=True)
+    author_name = Column(String(100), nullable=False)
+    author_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    author_role = Column(String(50), default="student")
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+    
+    post = relationship("ForumPost", back_populates="replies")
+
+
