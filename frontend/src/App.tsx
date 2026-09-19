@@ -15,6 +15,7 @@ const StudentResultsView = lazy(() => import('./components/StudentResultsView').
 const QuestionBankManager = lazy(() => import('./components/QuestionBankManager').then(m => ({ default: m.QuestionBankManager })));
 const ExamBuilderView = lazy(() => import('./components/ExamBuilderView').then(m => ({ default: m.ExamBuilderView })));
 const ScheduleCalendarView = lazy(() => import('./components/ScheduleCalendarView').then(m => ({ default: m.ScheduleCalendarView })));
+const MaterialsView = lazy(() => import('./components/MaterialsView').then(m => ({ default: m.MaterialsView })));
 
 const ViewLoadingFallback: React.FC = () => (
   <div style={{
@@ -260,24 +261,7 @@ export const App: React.FC = () => {
 
       {/* 5. Supplemental Content Tabs (Materials, Forum, Settings) */}
       {currentTab === 'materials' && (
-        <div style={{ padding: '2rem' }}>
-          <div className="dash-card">
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BookOpen size={20} color="#3B5EDB" /> Course Learning Materials & Reference Guides
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#64748B', marginBottom: '1.5rem' }}>
-              Access syllabus guidelines, algorithm cheat-sheets, and recommended readings.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-              {['Data Structures in C++', 'Operating Systems Architecture', 'Discrete Mathematics & Logic'].map((mat, i) => (
-                <div key={i} style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{mat}</h4>
-                  <p style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>PDF Handbook · 42 pages</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <MaterialsView currentUser={currentUser} />
       )}
 
       {currentTab === 'forum' && (

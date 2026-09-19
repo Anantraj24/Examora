@@ -203,3 +203,18 @@ class SubjectiveEvaluation(Base):
     
     answer = relationship("StudentAnswer", back_populates="evaluation", lazy="selectin")
     examiner = relationship("User", back_populates="evaluations")
+
+class CourseMaterial(Base):
+    __tablename__ = "course_materials"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False, index=True)
+    subject = Column(String(100), nullable=False, index=True)
+    category = Column(String(100), default="Handbook", nullable=False)
+    description = Column(Text, nullable=True)
+    file_format = Column(String(50), default="PDF", nullable=False)
+    pages = Column(Integer, default=1)
+    download_url = Column(String(500), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+

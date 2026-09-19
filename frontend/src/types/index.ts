@@ -64,6 +64,18 @@ export interface Exam {
   total_marks?: number;
 }
 
+export interface CourseMaterial {
+  id: string;
+  title: string;
+  subject: string;
+  category: string;
+  description?: string;
+  file_format: string;
+  pages: number;
+  download_url?: string;
+  created_at?: string;
+}
+
 export interface PaperQuestionView {
   id: string;
   order_index: number;

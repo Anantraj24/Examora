@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, questions, exams, exam_sessions, answers, proctoring_ws, evaluations, results
+from app.api.v1.endpoints import auth, questions, exams, exam_sessions, answers, proctoring_ws, evaluations, results, materials
 
 api_router = APIRouter()
 
@@ -11,3 +11,5 @@ api_router.include_router(answers.router, prefix="/answers", tags=["Answer Submi
 api_router.include_router(proctoring_ws.router, prefix="/proctoring", tags=["AI Proctoring & WebSockets"])
 api_router.include_router(evaluations.router, prefix="/evaluations", tags=["Examiner Grading Studio"])
 api_router.include_router(results.router, prefix="/results", tags=["Results & Candidate Analytics"])
+api_router.include_router(materials.router, prefix="/materials", tags=["Course Materials"])
+

@@ -1,6 +1,6 @@
 import {
   User, Exam, Question, StudentExamPaper,
-  GradingQueueItem, ExamResultData, UserRole
+  GradingQueueItem, ExamResultData, UserRole, CourseMaterial
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000/api/v1';
@@ -238,6 +238,45 @@ class ApiService {
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: 'Failed to delete exam' }));
       throw new Error(err.detail || 'Failed to delete exam');
+    }
+    return resp.json();
+  }
+
+  // ----------------- Course Materials API -----------------
+  async getMaterials(params?: { q?: string; subject?: string; category?: string }): Promise<CourseMaterial[]> {
+    const query = new URLSearchParams();
+    if (params?.q) query.append('q', params.q.trim());
+    if (params?.subject && params.subject !== 'All') query.append('subject', params.subject);
+    if (params?.category && params.category !== 'All') query.append('category', params.category);
+    
+    const qs = query.toString();
+    const url = `${API_BASE_URL}/materials/${qs ? '?' + qs : ''}`;
+    const resp = await fetch(url, { headers: this.getHeaders() });
+    if (!resp.ok) throw new Error('Failed to fetch course materials');
+    return resp.json();
+  }
+
+  async createMaterial(materialData: Partial<CourseMaterial>): Promise<CourseMaterial> {
+    const resp = await fetch(`${API_BASE_URL}/materials/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(materialData),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to create material' }));
+      throw new Error(err.detail || 'Failed to create material');
+    }
+    return resp.json();
+  }
+
+  async deleteMaterial(materialId: string): Promise<{ message: string; id: string }> {
+    const resp = await fetch(`${API_BASE_URL}/materials/${materialId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to delete material' }));
+      throw new Error(err.detail || 'Failed to delete material');
     }
     return resp.json();
   }

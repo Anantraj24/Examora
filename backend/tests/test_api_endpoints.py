@@ -352,4 +352,80 @@ async def test_exam_schedule_crud_and_sync(client: AsyncClient):
     assert get_del.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_materials_search_and_crud(client: AsyncClient):
+    # 1. Register & Login Examiner
+    reg_ex = await client.post("/api/v1/auth/register", json={
+        "email": "material_prof@exam.io",
+        "password": "password123",
+        "full_name": "Material Prof",
+        "role": "examiner"
+    })
+    assert reg_ex.status_code == 201
+    
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "material_prof@exam.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Get default seeded materials
+    res_all = await client.get("/api/v1/materials/", headers=headers)
+    assert res_all.status_code == 200
+    all_items = res_all.json()
+    assert len(all_items) >= 5
+
+    # 3. Search case-insensitive & trimmed
+    res_search1 = await client.get("/api/v1/materials/?q=  data structures  ", headers=headers)
+    assert res_search1.status_code == 200
+    assert any("Data Structures in C++" in m["title"] for m in res_search1.json())
+
+    res_search2 = await client.get("/api/v1/materials/?q=OPERATING SYSTEMS", headers=headers)
+    assert res_search2.status_code == 200
+    assert any("Operating Systems Architecture" in m["title"] for m in res_search2.json())
+
+    # 4. Partial search across description
+    res_partial = await client.get("/api/v1/materials/?q=concurrency", headers=headers)
+    assert res_partial.status_code == 200
+    assert len(res_partial.json()) >= 1
+
+    # 5. No results
+    res_none = await client.get("/api/v1/materials/?q=xyznonexistentquery999", headers=headers)
+    assert res_none.status_code == 200
+    assert len(res_none.json()) == 0
+
+    # 6. Search + subject filter
+    res_filt = await client.get("/api/v1/materials/?q=trees&subject=Computer Science", headers=headers)
+    assert res_filt.status_code == 200
+    assert len(res_filt.json()) >= 1
+
+    # 7. Create new material
+    create_mat = await client.post("/api/v1/materials/", json={
+        "title": "Quantum Computing Fundamentals",
+        "subject": "Physics & Computing",
+        "category": "Handbook",
+        "description": "Qubits, superposition, entanglement, and Grover search algorithm.",
+        "file_format": "PDF",
+        "pages": 50
+    }, headers=headers)
+    assert create_mat.status_code == 201
+    mat_id = create_mat.json()["id"]
+
+    # Verify search finds newly created material
+    res_new = await client.get("/api/v1/materials/?q=quantum", headers=headers)
+    assert res_new.status_code == 200
+    assert any(m["id"] == mat_id for m in res_new.json())
+
+    # 8. Delete material
+    del_res = await client.delete(f"/api/v1/materials/{mat_id}", headers=headers)
+    assert del_res.status_code == 200
+
+    # Verify deleted material no longer appears
+    res_after_del = await client.get("/api/v1/materials/?q=quantum", headers=headers)
+    assert res_after_del.status_code == 200
+    assert not any(m["id"] == mat_id for m in res_after_del.json())
+
+
+
 

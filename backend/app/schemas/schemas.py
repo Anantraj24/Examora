@@ -260,3 +260,33 @@ class ResultOut(BaseModel):
     question_breakdown: Optional[List[Dict[str, Any]]] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+# ----------------- Course Material Schemas -----------------
+class MaterialBase(BaseModel):
+    title: str
+    subject: str
+    category: str = "Handbook"
+    description: Optional[str] = None
+    file_format: str = "PDF"
+    pages: int = 1
+    download_url: Optional[str] = None
+
+class MaterialCreate(MaterialBase):
+    pass
+
+class MaterialUpdate(BaseModel):
+    title: Optional[str] = None
+    subject: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    file_format: Optional[str] = None
+    pages: Optional[int] = None
+    download_url: Optional[str] = None
+
+class MaterialOut(MaterialBase):
+    id: str
+    created_by: Optional[str] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
