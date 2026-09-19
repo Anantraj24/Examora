@@ -174,12 +174,27 @@ export const ProctorMissionControl: React.FC = () => {
         if (data && data.recent_alerts && data.recent_alerts.length > 0) {
           setAlerts(data.recent_alerts);
         }
+        if (data && data.sessions && data.sessions.length > 0) {
+          const colors = ['#6366F1', '#EC4899', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#14B8A6', '#3B82F6'];
+          const mapped: CandidateFeed[] = data.sessions.map((s: any, idx: number) => ({
+            id: s.session_id,
+            student_name: s.student_name || 'Candidate',
+            exam_title: s.exam_title || 'Formal Exam',
+            suspicion_score: Math.round(s.suspicion_score || 0),
+            tab_switches: s.tab_switches || 0,
+            face_status: (s.suspicion_score || 0) > 70 ? 'multiple' : (s.suspicion_score || 0) > 50 ? 'absent' : 'single',
+            gaze_status: 'center',
+            status: s.status === 'in_progress' ? ((s.suspicion_score || 0) >= 60 ? 'flagged' : 'active') : 'submitted',
+            avatar_color: colors[idx % colors.length]
+          }));
+          setCandidates(mapped);
+        }
       } catch (e) {
         // Cached overview fallback
       }
     }
     fetchOverview();
-    const interval = setInterval(fetchOverview, 6000);
+    const interval = setInterval(fetchOverview, 4000);
     return () => clearInterval(interval);
   }, []);
 

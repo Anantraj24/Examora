@@ -185,7 +185,6 @@ class AnswerOut(BaseModel):
     
     model_config = ConfigDict(from_attributes=True)
 
-# ----------------- Proctoring Schemas -----------------
 class ProctorTelemetryPayload(BaseModel):
     session_id: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -196,6 +195,9 @@ class ProctorTelemetryPayload(BaseModel):
     tab_hidden: bool = False
     window_blurred: bool = False
     snapshot_base64: Optional[str] = None
+    violation_type: Optional[str] = None
+    confidence: Optional[float] = 1.0
+    details: Optional[Dict[str, Any]] = None
 
 class ProctorHeartbeatResponse(BaseModel):
     status: str

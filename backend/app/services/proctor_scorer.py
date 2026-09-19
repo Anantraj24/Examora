@@ -34,6 +34,27 @@ def compute_telemetry_suspicion(
     snapshot_path = None
     new_tab_switches = current_tab_switches
     
+    # Normalize flags if explicit violation_type is specified
+    if payload.violation_type:
+        v_type = payload.violation_type.upper().strip()
+        if v_type in ["FACE_ABSENT", "NO_FACE"]:
+            payload.face_detected = False
+            payload.face_count = 0
+        elif v_type in ["MULTI_FACE", "MULTIPLE_FACES"]:
+            if payload.face_count < 2:
+                payload.face_count = 2
+        elif v_type in ["TAB_SWITCH", "TAB_BLUR"]:
+            payload.tab_hidden = True
+        elif v_type in ["CAMERA_UNAVAILABLE", "CAMERA_DENIED", "WEBCAM_DISCONNECTED"]:
+            payload.face_detected = False
+            payload.face_count = 0
+            suspicion_delta += 15.0
+            triggered_events.append({
+                "event_type": v_type,
+                "suspicion_delta": 15.0,
+                "message": "Webcam stream disconnected or hardware unavailable."
+            })
+
     # 1. Face Absence Verification
     if not payload.face_detected or payload.face_count == 0:
         suspicion_delta += settings.FACE_ABSENCE_PENALTY_RATE

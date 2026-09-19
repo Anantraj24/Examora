@@ -22,20 +22,46 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
   const [cameraStatus, setCameraStatus] = useState<'checking' | 'passed' | 'failed'>('checking');
   const [faceStatus, setFaceStatus] = useState<'checking' | 'passed' | 'no_face'>('checking');
   const [micStatus, setMicStatus] = useState<'checking' | 'passed' | 'failed'>('checking');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState<number>(0);
   const [audioLevel, setAudioLevel] = useState<number>(25);
   const [idCaptured, setIdCaptured] = useState<boolean>(false);
   const [pledgeChecked, setPledgeChecked] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Initialize camera and mic verification with AI face detection
   useEffect(() => {
-    let stream: MediaStream | null = null;
     let faceCheckTimer: any = null;
+    let isCancelled = false;
 
     async function startMedia() {
+      if (step !== 1) return;
+      setCameraStatus('checking');
+      setMicStatus('checking');
+      setErrorMessage(null);
+
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch (combinedErr: any) {
+          // If combined audio+video fails, try video only in case audio device is absent
+          if (combinedErr.name !== 'NotAllowedError' && combinedErr.name !== 'PermissionDeniedError') {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setMicStatus('failed');
+          } else {
+            throw combinedErr;
+          }
+        }
+
+        if (isCancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
@@ -43,7 +69,9 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
           };
         }
         setCameraStatus('passed');
-        setMicStatus('passed');
+        if (stream.getAudioTracks().length > 0) {
+          setMicStatus('passed');
+        }
 
         // Dynamic face detection loop
         faceCheckTimer = setInterval(async () => {
@@ -56,13 +84,22 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
             }
           }
         }, 500);
-      } catch (err) {
-        console.warn('System check camera/mic fallback', err);
-        setCameraStatus('passed');
-        setMicStatus('passed');
-        setFaceStatus('passed');
+      } catch (err: any) {
+        console.warn('System check camera/mic access error:', err);
+        setCameraStatus('failed');
+        setFaceStatus('no_face');
+        setMicStatus('failed');
+
+        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+          setErrorMessage('Camera access was denied. Please allow camera permissions in your browser address bar and click Retry.');
+        } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+          setErrorMessage('No camera device was detected on your system. A functional webcam is mandatory for proctoring.');
+        } else {
+          setErrorMessage(err?.message || 'Webcam sensor initialization failed. Please verify hardware permissions.');
+        }
       }
     }
+
     startMedia();
 
     // Simulated audio level pulse
@@ -71,13 +108,15 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
     }, 400);
 
     return () => {
+      isCancelled = true;
       clearInterval(audioInterval);
       if (faceCheckTimer) clearInterval(faceCheckTimer);
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
     };
-  }, [step]);
+  }, [step, retryKey]);
 
   return (
     <div style={{
@@ -148,21 +187,52 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
                   muted
                   style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
                 />
+                {cameraStatus === 'failed' && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.5rem',
+                    textAlign: 'center'
+                  }}>
+                    <AlertTriangle size={36} color="#F87171" style={{ marginBottom: '8px' }} />
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FCA5A5' }}>Webcam Access Unavailable</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Please grant browser camera permissions and click Retry</span>
+                  </div>
+                )}
                 <div style={{
                   position: 'absolute',
                   top: '10px',
                   left: '10px',
-                  background: 'rgba(0,0,0,0.6)',
+                  background: 'rgba(0,0,0,0.7)',
                   padding: '4px 8px',
                   borderRadius: '6px',
                   fontSize: '0.75rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  color: '#6EE7B7'
+                  color: cameraStatus === 'passed' ? '#6EE7B7' : cameraStatus === 'checking' ? '#93C5FD' : '#FCA5A5'
                 }}>
-                  <CheckCircle2 size={12} />
-                  <span>Optical Stream Active</span>
+                  {cameraStatus === 'passed' ? (
+                    <>
+                      <CheckCircle2 size={12} />
+                      <span>Optical Stream Active</span>
+                    </>
+                  ) : cameraStatus === 'checking' ? (
+                    <>
+                      <Sparkles size={12} />
+                      <span>Initializing Sensor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle size={12} />
+                      <span>Camera Offline</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -181,7 +251,9 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
                     <Camera size={18} color="#A5B4FC" />
                     <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Webcam Sensor</span>
                   </div>
-                  <span className="badge badge-emerald">Verified</span>
+                  <span className={`badge ${cameraStatus === 'passed' ? 'badge-emerald' : cameraStatus === 'checking' ? 'badge-indigo' : 'badge-rose'}`}>
+                    {cameraStatus === 'passed' ? 'Verified' : cameraStatus === 'checking' ? 'Checking...' : 'Access Denied'}
+                  </span>
                 </div>
 
                 <div style={{
@@ -198,12 +270,14 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
                       <Mic size={18} color="#6EE7B7" />
                       <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Microphone Audio</span>
                     </div>
-                    <span className="badge badge-emerald">Active</span>
+                    <span className={`badge ${micStatus === 'passed' ? 'badge-emerald' : micStatus === 'checking' ? 'badge-indigo' : 'badge-rose'}`}>
+                      {micStatus === 'passed' ? 'Active' : micStatus === 'checking' ? 'Checking...' : 'Unavailable'}
+                    </span>
                   </div>
                   {/* Audio Volume Bar */}
                   <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                     <div style={{
-                      width: `${audioLevel}%`,
+                      width: micStatus === 'passed' ? `${audioLevel}%` : '0%',
                       height: '100%',
                       background: 'linear-gradient(90deg, #10B981, #F59E0B)',
                       transition: 'width 0.2s ease'
@@ -240,16 +314,50 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
                     <Sparkles size={18} color="#C084FC" />
                     <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>AI Face Centering</span>
                   </div>
-                  <span className={`badge ${faceStatus === 'passed' ? 'badge-emerald' : faceStatus === 'no_face' ? 'badge-rose' : 'badge-indigo'}`}>
-                    {faceStatus === 'passed' ? 'Face Verified' : faceStatus === 'no_face' ? 'Position in Frame' : 'Detecting...'}
+                  <span className={`badge ${cameraStatus !== 'passed' ? 'badge-rose' : faceStatus === 'passed' ? 'badge-emerald' : faceStatus === 'no_face' ? 'badge-rose' : 'badge-indigo'}`}>
+                    {cameraStatus !== 'passed' ? 'Camera Required' : faceStatus === 'passed' ? 'Face Verified' : faceStatus === 'no_face' ? 'Position in Frame' : 'Detecting...'}
                   </span>
                 </div>
               </div>
             </div>
 
+            {/* Error Banner if Sensor Access Denied */}
+            {errorMessage && (
+              <div style={{
+                padding: '0.85rem 1.25rem',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '10px',
+                color: '#FCA5A5',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={18} color="#EF4444" style={{ flexShrink: 0 }} />
+                  <span>{errorMessage}</span>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setRetryKey((k) => k + 1)}
+                  style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                >
+                  <RefreshCw size={14} /> Retry
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
               <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => setStep(2)}>
+              <button
+                className="btn btn-primary"
+                disabled={cameraStatus !== 'passed'}
+                onClick={() => setStep(2)}
+                title={cameraStatus !== 'passed' ? 'Webcam sensor verification required' : ''}
+              >
                 Continue to ID Verification
                 <ArrowRight size={16} />
               </button>
@@ -360,11 +468,23 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-              <button className="btn btn-secondary" onClick={() => setStep(2)}>Back</button>
+              <button className="btn btn-secondary" onClick={() => {
+                if (streamRef.current) {
+                  streamRef.current.getTracks().forEach((t) => t.stop());
+                  streamRef.current = null;
+                }
+                setStep(2);
+              }}>Back</button>
               <button
                 className="btn btn-primary"
                 disabled={!pledgeChecked}
-                onClick={onProceed}
+                onClick={() => {
+                  if (streamRef.current) {
+                    streamRef.current.getTracks().forEach((t) => t.stop());
+                    streamRef.current = null;
+                  }
+                  onProceed();
+                }}
                 style={{
                   background: 'linear-gradient(135deg, #10B981, #059669)',
                   borderColor: '#10B981',

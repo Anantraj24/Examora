@@ -17,7 +17,9 @@ interface ExamSessionViewProps {
 }
 
 export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFinishExam }) => {
-  const [showSystemCheck, setShowSystemCheck] = useState<boolean>(true);
+  const [showSystemCheck, setShowSystemCheck] = useState<boolean>(() => {
+    return sessionStorage.getItem(`examora_syscheck_passed_${examId}`) !== 'true';
+  });
   const [paper, setPaper] = useState<StudentExamPaper | null>(null);
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<string, {
@@ -60,6 +62,7 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
       const data = await api.startExamSession(examId);
       setPaper(data);
       setSecondsRemaining(data.seconds_remaining || 45 * 60);
+      sessionStorage.setItem(`examora_syscheck_passed_${examId}`, 'true');
       setShowSystemCheck(false);
 
       // Request fullscreen
@@ -144,6 +147,13 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
     }
   };
 
+  // Restore active session on mount if system check already passed (e.g. after page refresh)
+  useEffect(() => {
+    if (!showSystemCheck && !paper) {
+      initializeExamSession();
+    }
+  }, [showSystemCheck, examId]);
+
   // Timer countdown
   useEffect(() => {
     if (showSystemCheck || !paper) return;
@@ -174,6 +184,14 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
       setTabSwitchCount((prev) => prev + 1);
       setProctorViolations((prev) => [...prev, `Tab switch / focus blur detected at ${new Date().toLocaleTimeString()}`]);
       playWarningBeep();
+      if (paper?.session_id) {
+        api.sendProctorTelemetry({
+          session_id: paper.session_id,
+          violation_type: 'TAB_SWITCH',
+          confidence: 1.0,
+          details: { reason: 'Student switched tabs or unfocused exam window', timestamp: new Date().toISOString() }
+        }).catch(console.warn);
+      }
     };
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -304,6 +322,7 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
   const handleFinalSubmit = async () => {
     if (!paper) return;
     setIsSubmitting(true);
+    sessionStorage.removeItem(`examora_syscheck_passed_${examId}`);
     try {
       await api.submitFinalExam(paper.session_id);
     } catch (e) {
@@ -327,7 +346,10 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
         examTitle="Advanced Computer Systems & AI Examination (2026)"
         durationMinutes={45}
         onProceed={initializeExamSession}
-        onCancel={() => onFinishExam('')}
+        onCancel={() => {
+          sessionStorage.removeItem(`examora_syscheck_passed_${examId}`);
+          onFinishExam('');
+        }}
       />
     );
   }

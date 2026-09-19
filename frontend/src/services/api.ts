@@ -299,6 +299,22 @@ class ApiService {
     return ws;
   }
 
+  async sendProctorTelemetry(telemetry: any) {
+    try {
+      const resp = await fetch(`${API_BASE_URL}/proctoring/telemetry`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(telemetry),
+      });
+      if (resp.ok) {
+        return resp.json();
+      }
+    } catch (e) {
+      console.warn('REST proctor telemetry dispatch error:', e);
+    }
+    return null;
+  }
+
   async getLiveProctorOverview() {
     const resp = await fetch(`${API_BASE_URL}/proctoring/live-overview`, {
       headers: this.getHeaders(),

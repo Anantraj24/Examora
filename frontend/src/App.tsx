@@ -40,7 +40,7 @@ const ViewLoadingFallback: React.FC = () => (
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => sessionStorage.getItem('examora_active_exam_id'));
   const [resultSessionId, setResultSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(true);
 
@@ -110,6 +110,7 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    sessionStorage.removeItem('examora_active_exam_id');
     api.logout();
     setCurrentUser(null);
     setActiveSessionId(null);
@@ -118,10 +119,12 @@ export const App: React.FC = () => {
   };
 
   const handleStartExam = (examId: string) => {
+    sessionStorage.setItem('examora_active_exam_id', examId);
     setActiveSessionId(examId);
   };
 
   const handleFinishExam = (sessionId: string) => {
+    sessionStorage.removeItem('examora_active_exam_id');
     setActiveSessionId(null);
     setResultSessionId(sessionId);
     setCurrentTab('results');

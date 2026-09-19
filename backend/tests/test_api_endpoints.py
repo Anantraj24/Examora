@@ -208,3 +208,79 @@ async def test_question_and_exam_validation_constraints(client: AsyncClient):
     assert resp_invalid_dur.status_code == 400
     assert "Duration must be positive" in resp_invalid_dur.json()["detail"]
 
+
+@pytest.mark.asyncio
+async def test_proctoring_telemetry_and_live_overview(client: AsyncClient):
+    # Register & Login
+    await client.post("/api/v1/auth/register", json={
+        "email": "proctor_student@exam.io",
+        "password": "password123",
+        "full_name": "Proctor Candidate",
+        "role": "student"
+    })
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "proctor_student@exam.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create an exam as examiner
+    await client.post("/api/v1/auth/register", json={
+        "email": "proctor_examiner@exam.io",
+        "password": "password123",
+        "full_name": "Proctor Prof",
+        "role": "examiner"
+    })
+    ex_login = await client.post("/api/v1/auth/login", json={
+        "email": "proctor_examiner@exam.io",
+        "password": "password123"
+    })
+    ex_headers = {"Authorization": f"Bearer {ex_login.json()['access_token']}"}
+
+    exam_resp = await client.post("/api/v1/exams/", json={
+        "title": "Proctored AI Assessment",
+        "subject": "CS",
+        "instructions": "Strict proctoring enforced.",
+        "duration_minutes": 30,
+        "is_published": True
+    }, headers=ex_headers)
+    exam_id = exam_resp.json()["id"]
+
+    # Student starts session
+    sess_resp = await client.post("/api/v1/sessions/start", json={"exam_id": exam_id}, headers=headers)
+    assert sess_resp.status_code == 200
+    session_id = sess_resp.json()["session_id"]
+
+    # 1. Send telemetry: Face absent violation
+    telem_absent = await client.post("/api/v1/proctoring/telemetry", json={
+        "session_id": session_id,
+        "violation_type": "FACE_ABSENT",
+        "confidence": 0.95,
+        "details": {"duration_seconds": 6}
+    })
+    assert telem_absent.status_code == 200
+    data_absent = telem_absent.json()
+    assert data_absent["current_suspicion_score"] > 0
+    assert data_absent["violations_count"] >= 1
+
+    # 2. Send telemetry: Multiple faces detected
+    telem_multi = await client.post("/api/v1/proctoring/telemetry", json={
+        "session_id": session_id,
+        "violation_type": "MULTI_FACE",
+        "confidence": 0.98,
+        "details": {"face_count": 2}
+    })
+    assert telem_multi.status_code == 200
+    data_multi = telem_multi.json()
+    assert data_multi["current_suspicion_score"] > data_absent["current_suspicion_score"]
+
+    # 3. Check Live Overview
+    overview_resp = await client.get("/api/v1/proctoring/live-overview")
+    assert overview_resp.status_code == 200
+    overview_data = overview_resp.json()
+    assert overview_data["total_active_sessions"] >= 1
+    assert len(overview_data["recent_alerts"]) >= 2
+    assert any(a["session_id"] == session_id for a in overview_data["recent_alerts"])
+
+

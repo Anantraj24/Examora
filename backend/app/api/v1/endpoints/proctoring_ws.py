@@ -156,10 +156,99 @@ async def get_proctor_events(session_id: str, db: AsyncSession = Depends(get_db)
     events = (await db.execute(query)).scalars().all()
     return events
 
+@router.post("/telemetry", response_model=ProctorHeartbeatResponse)
+async def submit_proctoring_telemetry(payload: ProctorTelemetryPayload, db: AsyncSession = Depends(get_db)):
+    """
+    REST fallback endpoint to reliably record proctoring telemetry heartbeats and violations.
+    """
+    sess_query = select(ExamSession).options(
+        selectinload(ExamSession.student), selectinload(ExamSession.exam)
+    ).where(ExamSession.id == payload.session_id)
+    session = (await db.execute(sess_query)).scalar_one_or_none()
+    
+    if not session:
+        # Graceful handling for demo / mock session IDs (e.g. sess-demo-active)
+        new_score, new_tabs, events, snapshot_path = compute_telemetry_suspicion(
+            payload=payload,
+            current_score=10.0,
+            current_tab_switches=0
+        )
+        if events:
+            alert_payload = {
+                "type": "PROCTOR_ALERT",
+                "session_id": payload.session_id,
+                "student_name": "Candidate (Demo Session)",
+                "exam_title": "AI Proctored Examination",
+                "suspicion_score": new_score,
+                "events": events,
+                "snapshot_path": snapshot_path,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            await manager.broadcast_alert_to_observers(alert_payload)
+        return ProctorHeartbeatResponse(
+            status="acknowledged_demo",
+            current_suspicion_score=new_score,
+            violations_count=len(events),
+            warning_message=events[-1]["message"] if events else None
+        )
+        
+    new_score, new_tabs, events, snapshot_path = compute_telemetry_suspicion(
+        payload=payload,
+        current_score=session.final_suspicion_score,
+        current_tab_switches=session.total_tab_switches
+    )
+    
+    session.final_suspicion_score = new_score
+    session.total_tab_switches = new_tabs
+    
+    if new_score >= 80.0 and session.status == SessionStatus.IN_PROGRESS:
+        session.status = SessionStatus.FLAGGED
+        
+    for ev in events:
+        db_event = ProctorEvent(
+            session_id=session.id,
+            event_type=ev["event_type"],
+            suspicion_delta=ev["suspicion_delta"],
+            snapshot_path=snapshot_path,
+            raw_telemetry={
+                "gaze_direction": payload.gaze_direction,
+                "gaze_score": payload.gaze_score,
+                "face_count": payload.face_count,
+                "tab_hidden": payload.tab_hidden,
+                "window_blurred": payload.window_blurred,
+                "message": ev["message"]
+            }
+        )
+        db.add(db_event)
+        
+    await db.commit()
+    
+    warning_msg = events[-1]["message"] if events else None
+    
+    if events:
+        alert_payload = {
+            "type": "PROCTOR_ALERT",
+            "session_id": session.id,
+            "student_name": session.student.full_name if session.student else "Candidate",
+            "exam_title": session.exam.title if session.exam else "Exam",
+            "suspicion_score": new_score,
+            "events": events,
+            "snapshot_path": snapshot_path,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        await manager.broadcast_alert_to_observers(alert_payload)
+        
+    return ProctorHeartbeatResponse(
+        status="acknowledged",
+        current_suspicion_score=new_score,
+        violations_count=len(events),
+        warning_message=warning_msg
+    )
+
 @router.get("/live-overview")
 async def get_live_proctoring_overview(db: AsyncSession = Depends(get_db)):
     """
-    Provides real-time aggregated metrics for the proctoring dashboard.
+    Provides real-time aggregated metrics and recent violation alerts for the proctoring dashboard.
     """
     query = select(ExamSession).options(
         selectinload(ExamSession.student),
@@ -182,8 +271,29 @@ async def get_live_proctoring_overview(db: AsyncSession = Depends(get_db)):
             "server_deadline": s.server_deadline
         })
         
+    # Query recent proctoring violation events
+    alerts_query = select(ProctorEvent).options(
+        selectinload(ProctorEvent.session).selectinload(ExamSession.student)
+    ).order_by(ProctorEvent.timestamp.desc()).limit(20)
+    recent_events = (await db.execute(alerts_query)).scalars().all()
+    
+    recent_alerts = []
+    for ev in recent_events:
+        student_name = ev.session.student.full_name if ev.session and ev.session.student else "Candidate"
+        sev = "high" if (ev.suspicion_delta or 0) >= 15 else "medium" if (ev.suspicion_delta or 0) >= 8 else "low"
+        recent_alerts.append({
+            "id": ev.id,
+            "session_id": ev.session_id,
+            "student_name": student_name,
+            "event_type": ev.event_type,
+            "severity": sev,
+            "message": f"Integrity Event: {ev.event_type} (suspicion +{ev.suspicion_delta:.1f})",
+            "timestamp": ev.timestamp.strftime("%I:%M:%S %p") if ev.timestamp else ""
+        })
+        
     return {
         "total_active_sessions": sum(1 for s in sessions if s.status == SessionStatus.IN_PROGRESS),
-        "total_flagged_sessions": sum(1 for s in sessions if s.final_suspicion_score >= 60.0),
-        "sessions": active_list
+        "total_flagged_sessions": sum(1 for s in sessions if (s.final_suspicion_score or 0) >= 60.0),
+        "sessions": active_list,
+        "recent_alerts": recent_alerts
     }
