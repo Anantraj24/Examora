@@ -45,6 +45,14 @@ def compute_telemetry_suspicion(
                 payload.face_count = 2
         elif v_type in ["TAB_SWITCH", "TAB_BLUR"]:
             payload.tab_hidden = True
+        elif v_type in ["FULLSCREEN_EXIT", "FULLSCREEN_LOST"]:
+            new_tab_switches += 1
+            suspicion_delta += 10.0
+            triggered_events.append({
+                "event_type": "FULLSCREEN_EXIT",
+                "suspicion_delta": 10.0,
+                "message": "Candidate exited lockdown fullscreen mode."
+            })
         elif v_type in ["CAMERA_UNAVAILABLE", "CAMERA_DENIED", "WEBCAM_DISCONNECTED"]:
             payload.face_detected = False
             payload.face_count = 0

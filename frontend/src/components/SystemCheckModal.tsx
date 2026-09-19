@@ -4,6 +4,7 @@ import {
   AlertTriangle, ArrowRight, RefreshCw, Sparkles, UserCheck, Lock
 } from 'lucide-react';
 import { aiVisionEngine } from '../services/aiVisionProctor';
+import { requestFullscreen } from '../services/fullscreenService';
 
 interface SystemCheckModalProps {
   examTitle: string;
@@ -478,10 +479,15 @@ export const SystemCheckModal: React.FC<SystemCheckModalProps> = ({
               <button
                 className="btn btn-primary"
                 disabled={!pledgeChecked}
-                onClick={() => {
+                onClick={async () => {
                   if (streamRef.current) {
                     streamRef.current.getTracks().forEach((t) => t.stop());
                     streamRef.current = null;
+                  }
+                  try {
+                    await requestFullscreen();
+                  } catch (e) {
+                    console.warn('[SystemCheckModal] Initial fullscreen deferred:', e);
                   }
                   onProceed();
                 }}

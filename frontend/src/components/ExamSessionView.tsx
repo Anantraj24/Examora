@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Clock, ShieldAlert, CheckCircle2, Bookmark, ArrowLeft, ArrowRight,
   Maximize2, Send, Save, AlertTriangle, Sparkles, HelpCircle,
-  FileText, Image as ImageIcon, Volume2
+  FileText, Image as ImageIcon, Volume2, ShieldCheck, Lock
 } from 'lucide-react';
 import { StudentExamPaper, PaperQuestionView } from '../types';
 import { api } from '../services/api';
@@ -10,6 +10,12 @@ import { WebcamProctorHUD } from './WebcamProctorHUD';
 import { SystemCheckModal } from './SystemCheckModal';
 import { DiagramSketchCanvas } from './DiagramSketchCanvas';
 import confetti from 'canvas-confetti';
+import { 
+  isFullscreenActive, 
+  requestFullscreen, 
+  exitFullscreen, 
+  subscribeToFullscreenChange 
+} from '../services/fullscreenService';
 
 interface ExamSessionViewProps {
   examId: string;
@@ -35,7 +41,9 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>('All changes saved');
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [proctorViolations, setProctorViolations] = useState<string[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => isFullscreenActive());
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const [fullscreenExitCount, setFullscreenExitCount] = useState<number>(0);
 
   // Play auditory warning beep via Web Audio API
   const playWarningBeep = () => {
@@ -56,6 +64,40 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
     }
   };
 
+  // Fullscreen state listener
+  useEffect(() => {
+    const unsubscribe = subscribeToFullscreenChange((active) => {
+      setIsFullscreen(active);
+      if (active) {
+        setFullscreenError(null);
+      } else if (!showSystemCheck && paper) {
+        setFullscreenExitCount((prev) => prev + 1);
+        setProctorViolations((prev) => [...prev, `Lockdown fullscreen exit detected at ${new Date().toLocaleTimeString()}`]);
+        playWarningBeep();
+        if (paper.session_id) {
+          api.sendProctorTelemetry({
+            session_id: paper.session_id,
+            violation_type: 'FULLSCREEN_EXIT',
+            confidence: 1.0,
+            details: { reason: 'Candidate exited browser fullscreen mode', timestamp: new Date().toISOString() }
+          }).catch(console.warn);
+        }
+      }
+    });
+    return unsubscribe;
+  }, [showSystemCheck, paper]);
+
+  const handleEnterFullscreen = async () => {
+    try {
+      setFullscreenError(null);
+      await requestFullscreen();
+      setIsFullscreen(true);
+    } catch (err: any) {
+      console.warn('[ExamSessionView] Fullscreen activation failed:', err);
+      setFullscreenError('Fullscreen request was blocked by your browser. Please allow fullscreen permissions or press F11.');
+    }
+  };
+
   // Launch and start session
   const initializeExamSession = async () => {
     try {
@@ -64,16 +106,7 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
       setSecondsRemaining(data.seconds_remaining || 45 * 60);
       sessionStorage.setItem(`examora_syscheck_passed_${examId}`, 'true');
       setShowSystemCheck(false);
-
-      // Request fullscreen
-      try {
-        if (document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen();
-          setIsFullscreen(true);
-        }
-      } catch (e) {
-        console.warn('Fullscreen request bypassed', e);
-      }
+      setIsFullscreen(isFullscreenActive());
     } catch (e) {
       console.error('Failed to start session', e);
       // Fallback preview
@@ -328,6 +361,7 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
     } catch (e) {
       console.warn('Final submit fallback', e);
     }
+    await exitFullscreen();
     confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
     setTimeout(() => {
       onFinishExam(paper.session_id);
@@ -346,8 +380,9 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
         examTitle="Advanced Computer Systems & AI Examination (2026)"
         durationMinutes={45}
         onProceed={initializeExamSession}
-        onCancel={() => {
+        onCancel={async () => {
           sessionStorage.removeItem(`examora_syscheck_passed_${examId}`);
+          await exitFullscreen();
           onFinishExam('');
         }}
       />
@@ -415,7 +450,47 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
         </div>
 
         {/* Action Controls & AutoSave Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {/* Fullscreen Status Indicator */}
+          {isFullscreen ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: '#6EE7B7',
+              fontSize: '0.75rem',
+              fontWeight: 600
+            }}>
+              <CheckCircle2 size={12} />
+              <span>Fullscreen Locked</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleEnterFullscreen}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#FCA5A5',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Click to enter lockdown fullscreen mode"
+            >
+              <AlertTriangle size={12} />
+              <span>Enter Fullscreen</span>
+            </button>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <Save size={14} color="#10B981" />
             <span>{autoSaveStatus}</span>
@@ -729,6 +804,106 @@ export const ExamSessionView: React.FC<ExamSessionViewProps> = ({ examId, onFini
                 {isSubmitting ? 'Finalizing...' : 'Confirm Submission'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Lockdown Enforcement Overlay */}
+      {!showSystemCheck && paper && !isFullscreen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(10, 15, 29, 0.94)',
+          backdropFilter: 'blur(16px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9998,
+          padding: '1.5rem'
+        }}>
+          <div className="glass-panel" style={{
+            maxWidth: '540px',
+            width: '100%',
+            padding: '2.5rem',
+            borderRadius: '16px',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '2px solid rgba(239, 68, 68, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto'
+            }}>
+              <Maximize2 size={32} color="#F87171" />
+            </div>
+
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '8px', color: '#F87171' }}>
+              Lockdown Fullscreen Required
+            </h3>
+            
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+              This examination operates under strict lockdown proctoring. You must remain in full-screen mode at all times. All questions are hidden until fullscreen is active.
+            </p>
+
+            {fullscreenExitCount > 0 && (
+              <div style={{
+                padding: '0.75rem 1rem',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '8px',
+                color: '#FBBF24',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                <AlertTriangle size={16} />
+                <span>Security Incident: {fullscreenExitCount} fullscreen exit(s) recorded</span>
+              </div>
+            )}
+
+            {fullscreenError && (
+              <div style={{
+                padding: '0.75rem 1rem',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                color: '#FCA5A5',
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem'
+              }}>
+                {fullscreenError}
+              </div>
+            )}
+
+            <button
+              className="btn btn-primary"
+              onClick={handleEnterFullscreen}
+              style={{
+                width: '100%',
+                padding: '0.85rem 1.5rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                boxShadow: '0 0 25px rgba(99, 102, 241, 0.5)'
+              }}
+            >
+              <Maximize2 size={18} />
+              {fullscreenExitCount > 0 ? 'Re-enter Fullscreen & Resume Exam' : 'Enter Fullscreen Mode'}
+            </button>
           </div>
         </div>
       )}
