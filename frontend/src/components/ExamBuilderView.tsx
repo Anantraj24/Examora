@@ -27,6 +27,10 @@ export const ExamBuilderView: React.FC<ExamBuilderViewProps> = ({ onExamCreated 
   const [multiFaceDetection, setMultiFaceDetection] = useState<boolean>(true);
   const [maxTabSwitches, setMaxTabSwitches] = useState<number>(3);
 
+  // Schedule Windows
+  const [startWindow, setStartWindow] = useState<string>('');
+  const [endWindow, setEndWindow] = useState<string>('');
+
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [createdSuccess, setCreatedSuccess] = useState<boolean>(false);
 
@@ -39,6 +43,8 @@ export const ExamBuilderView: React.FC<ExamBuilderViewProps> = ({ onExamCreated 
         subject,
         instructions,
         duration_minutes: durationMinutes,
+        start_window: startWindow ? new Date(startWindow).toISOString() : undefined,
+        end_window: endWindow ? new Date(endWindow).toISOString() : undefined,
         blueprint_rules: {
           easy_count: easyCount,
           medium_count: mediumCount,
@@ -54,6 +60,7 @@ export const ExamBuilderView: React.FC<ExamBuilderViewProps> = ({ onExamCreated 
       });
       setCreatedSuccess(true);
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+      window.dispatchEvent(new CustomEvent('examora_exams_updated'));
       if (onExamCreated) onExamCreated();
     } catch (err) {
       console.warn('Exam creation fallback', err);
@@ -166,6 +173,48 @@ export const ExamBuilderView: React.FC<ExamBuilderViewProps> = ({ onExamCreated 
                 type="text"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
+            <div>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                Start Schedule Window (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={startWindow}
+                onChange={(e) => setStartWindow(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                End Schedule Window (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={endWindow}
+                onChange={(e) => setEndWindow(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '10px 14px',

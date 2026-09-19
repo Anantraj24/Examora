@@ -284,3 +284,72 @@ async def test_proctoring_telemetry_and_live_overview(client: AsyncClient):
     assert any(a["session_id"] == session_id for a in overview_data["recent_alerts"])
 
 
+@pytest.mark.asyncio
+async def test_exam_schedule_crud_and_sync(client: AsyncClient):
+    # Register Examiner
+    reg_ex = await client.post("/api/v1/auth/register", json={
+        "email": "schedule_prof@exam.io",
+        "password": "password123",
+        "full_name": "Schedule Prof",
+        "role": "examiner"
+    })
+    assert reg_ex.status_code == 201
+    
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "schedule_prof@exam.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Create exam with start and end schedule window
+    create_resp = await client.post("/api/v1/exams/", json={
+        "title": "Initial Scheduled Exam",
+        "subject": "CS301",
+        "instructions": "Initial instructions",
+        "duration_minutes": 60,
+        "start_window": "2026-09-15T10:00:00Z",
+        "end_window": "2026-09-15T12:00:00Z",
+        "is_published": True
+    }, headers=headers)
+    assert create_resp.status_code == 201
+    exam = create_resp.json()
+    exam_id = exam["id"]
+    assert exam["title"] == "Initial Scheduled Exam"
+    assert exam["duration_minutes"] == 60
+    assert "2026-09-15T10:00:00" in exam["start_window"]
+
+    # 2. Reschedule Exam (PUT /api/v1/exams/{exam_id})
+    update_resp = await client.put(f"/api/v1/exams/{exam_id}", json={
+        "title": "Rescheduled Final Exam",
+        "duration_minutes": 90,
+        "start_window": "2026-09-18T14:00:00Z",
+        "end_window": "2026-09-18T16:00:00Z"
+    }, headers=headers)
+    assert update_resp.status_code == 200
+    updated_exam = update_resp.json()
+    assert updated_exam["title"] == "Rescheduled Final Exam"
+    assert updated_exam["duration_minutes"] == 90
+    assert "2026-09-18T14:00:00" in updated_exam["start_window"]
+    assert "2026-09-18T16:00:00" in updated_exam["end_window"]
+
+    # 3. Verify single source of truth in GET list
+    list_resp = await client.get("/api/v1/exams/", headers=headers)
+    assert list_resp.status_code == 200
+    all_exams = list_resp.json()
+    found = [e for e in all_exams if e["id"] == exam_id]
+    assert len(found) == 1
+    assert found[0]["title"] == "Rescheduled Final Exam"
+    assert found[0]["duration_minutes"] == 90
+
+    # 4. Delete/Cancel scheduled exam (DELETE /api/v1/exams/{exam_id})
+    del_resp = await client.delete(f"/api/v1/exams/{exam_id}", headers=headers)
+    assert del_resp.status_code == 200
+    assert del_resp.json()["id"] == exam_id
+
+    # 5. Verify exam is removed
+    get_del = await client.get(f"/api/v1/exams/{exam_id}", headers=headers)
+    assert get_del.status_code == 404
+
+
+

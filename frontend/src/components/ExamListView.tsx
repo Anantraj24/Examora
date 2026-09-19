@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, Clock, ShieldCheck, Play, 
-  Sparkles, CheckCircle, AlertCircle, ArrowRight, Eye
+  Sparkles, CheckCircle, AlertCircle, ArrowRight, Eye, Calendar
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Exam } from '../types';
@@ -59,6 +59,14 @@ export const ExamListView: React.FC<ExamListViewProps> = ({ onStartExam, onViewR
       }
     }
     loadExams();
+
+    const handleSync = () => {
+      loadExams();
+    };
+    window.addEventListener('examora_exams_updated', handleSync);
+    return () => {
+      window.removeEventListener('examora_exams_updated', handleSync);
+    };
   }, []);
 
   return (
@@ -122,7 +130,7 @@ export const ExamListView: React.FC<ExamListViewProps> = ({ onStartExam, onViewR
                 padding: '0.875rem',
                 background: 'var(--bg-surface)',
                 borderRadius: '8px',
-                marginBottom: '1.25rem',
+                marginBottom: '0.75rem',
                 fontSize: '0.8rem'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
@@ -134,6 +142,26 @@ export const ExamListView: React.FC<ExamListViewProps> = ({ onStartExam, onViewR
                   <span>AI Proctoring: <strong style={{ color: '#6EE7B7' }}>Active</strong></span>
                 </div>
               </div>
+
+              {ex.start_window && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.78rem',
+                  color: '#94A3B8',
+                  marginBottom: '1rem',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.2)'
+                }}>
+                  <Calendar size={13} color="#818CF8" />
+                  <span>Window: <strong style={{ color: '#C7D2FE' }}>
+                    {new Date(ex.start_window).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at {new Date(ex.start_window).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                  </strong></span>
+                </div>
+              )}
             </div>
 
             {/* Launch Action Button */}

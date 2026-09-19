@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
   Sparkles, Shield, CheckCircle2, AlertCircle, ArrowRight, 
-  Download, Plus, Filter, BookOpen, Layers
+  Download, Plus, Filter, BookOpen, Layers, Trash2, Edit3, X, Loader2
 } from 'lucide-react';
 import { User, Exam } from '../types';
 import { api } from '../services/api';
@@ -14,127 +14,237 @@ interface ScheduleCalendarViewProps {
   onNavigateTab?: (tab: string) => void;
 }
 
+interface ProcessedScheduledItem {
+  id: string;
+  examId: string;
+  title: string;
+  subject: string;
+  code: string;
+  date: string;
+  time: string;
+  dayDate: number;
+  duration: string;
+  status: 'active' | 'upcoming' | 'upcoming_today' | 'completed';
+  type: string;
+  examiner: string;
+  proctoring: string;
+  room: string;
+  totalMarks: number;
+  rawStart?: string;
+  rawEnd?: string;
+  rawDurationMinutes: number;
+  rawInstructions?: string;
+}
+
 export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   currentUser,
   onStartExam,
   onViewResults,
   onNavigateTab
 }) => {
-  const [selectedDate, setSelectedDate] = useState<number>(15); // Default to current day
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [selectedDate, setSelectedDate] = useState<number>(new Date().getDate());
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'today' | 'upcoming' | 'completed'>('all');
-  const [currentMonth, setCurrentMonth] = useState('September 2026');
+  
+  // Date calculation for week strip
+  const today = new Date();
+  const currentMonthStr = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const [currentMonth, setCurrentMonth] = useState(currentMonthStr);
 
-  // Days of current week
-  const weekDays = [
-    { day: 'Mon', date: 14, hasEvents: true, isToday: false },
-    { day: 'Tue', date: 15, hasEvents: true, isToday: true },
-    { day: 'Wed', date: 16, hasEvents: true, isToday: false },
-    { day: 'Thu', date: 17, hasEvents: false, isToday: false },
-    { day: 'Fri', date: 18, hasEvents: true, isToday: false },
-    { day: 'Sat', date: 19, hasEvents: false, isToday: false },
-    { day: 'Sun', date: 20, hasEvents: false, isToday: false },
-  ];
+  // Modal State for Scheduling / Rescheduling
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
+  const [modalTitle, setModalTitle] = useState<string>('');
+  const [modalSubject, setModalSubject] = useState<string>('Computer Science');
+  const [modalInstructions, setModalInstructions] = useState<string>('');
+  const [modalDuration, setModalDuration] = useState<number>(60);
+  const [modalStartWindow, setModalStartWindow] = useState<string>('');
+  const [modalEndWindow, setModalEndWindow] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Scheduled examination & lesson events
-  const scheduledItems = [
-    {
-      id: 'sched-01',
-      examId: 'exam-cs301',
-      title: 'Algorithms & Advanced Data Structures Final',
-      subject: 'Computer Science',
-      code: 'CS301',
-      date: 'Tuesday, Sep 15, 2026',
-      time: '10:00 AM - 11:30 AM',
-      dayDate: 15,
-      duration: '90 mins',
-      status: 'active', // active right now
-      type: 'Formal Proctored Exam',
-      examiner: 'Prof. Sarah Connor',
-      proctoring: 'AI Full Proctoring (MediaPipe Edge ML)',
-      room: 'Virtual Room A-1',
-      totalMarks: 100,
-    },
-    {
-      id: 'sched-02',
-      examId: 'exam-os402',
-      title: 'Operating Systems & Concurrency Mock Exam',
-      subject: 'Computer Science',
-      code: 'CS402',
-      date: 'Tuesday, Sep 15, 2026',
-      time: '02:00 PM - 03:00 PM',
-      dayDate: 15,
-      duration: '60 mins',
-      status: 'upcoming_today',
-      type: 'Mock Assessment',
-      examiner: 'Dr. Marcus Vance',
-      proctoring: 'Tab & Focus Tracking',
-      room: 'Virtual Room B-4',
-      totalMarks: 50,
-    },
-    {
-      id: 'sched-03',
-      examId: 'exam-db201',
-      title: 'Relational Database Architecture & SQL Lab',
-      subject: 'Information Systems',
-      code: 'IS201',
-      date: 'Wednesday, Sep 16, 2026',
-      time: '11:00 AM - 12:30 PM',
-      dayDate: 16,
-      duration: '90 mins',
-      status: 'upcoming',
-      type: 'Midterm Assessment',
-      examiner: 'Prof. Alan Vance',
-      proctoring: 'Full Camera & Gaze Verification',
-      room: 'Virtual Room C-2',
-      totalMarks: 80,
-    },
-    {
-      id: 'sched-04',
-      examId: 'exam-math101',
-      title: 'Discrete Mathematics & Boolean Logic Test',
-      subject: 'Mathematics',
-      code: 'MATH101',
-      date: 'Friday, Sep 18, 2026',
-      time: '09:30 AM - 11:00 AM',
-      dayDate: 18,
-      duration: '90 mins',
-      status: 'upcoming',
-      type: 'Formal Proctored Exam',
-      examiner: 'Dr. Emily Chen',
-      proctoring: 'AI Gaze & Landmark Verification',
-      room: 'Virtual Room A-3',
-      totalMarks: 100,
-    },
-    {
-      id: 'sched-05',
-      examId: 'exam-ai501',
-      title: 'Introduction to Neural Networks & AI Ethics',
-      subject: 'Artificial Intelligence',
-      code: 'AI501',
-      date: 'Monday, Sep 14, 2026',
-      time: '10:00 AM - 11:15 AM',
-      dayDate: 14,
-      duration: '75 mins',
-      status: 'completed',
-      type: 'Quiz & Practical',
-      examiner: 'Prof. Sarah Connor',
-      proctoring: 'Full Camera Telemetry',
-      room: 'Virtual Room D-1',
-      totalMarks: 60,
+  // Fetch exams from single source of truth
+  const loadExams = async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getExams(currentUser.role === 'student');
+      if (data && data.length > 0) {
+        setExams(data);
+      } else {
+        setExams([]);
+      }
+    } catch (err) {
+      console.warn('Schedule exams fetch fallback:', err);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadExams();
+    // Multi-view real-time sync listener
+    const handleSync = () => {
+      loadExams();
+    };
+    window.addEventListener('examora_exams_updated', handleSync);
+    return () => {
+      window.removeEventListener('examora_exams_updated', handleSync);
+    };
+  }, [currentUser.role]);
+
+  // Generate dynamic 7-day week view based on current week
+  const getWeekDays = () => {
+    const current = new Date();
+    const firstDayOfWeek = new Date(current);
+    const dayIndex = current.getDay(); // 0 is Sun, 1 is Mon
+    const diff = (dayIndex === 0 ? -6 : 1) - dayIndex; // Adjust to start on Monday
+    firstDayOfWeek.setDate(current.getDate() + diff);
+
+    const days = [];
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(firstDayOfWeek);
+      d.setDate(firstDayOfWeek.getDate() + i);
+      const dayNum = d.getDate();
+      const isCurrentDay = d.toDateString() === current.toDateString();
+      
+      // Check if any exam falls on this day
+      const hasEvents = exams.some(ex => {
+        if (!ex.start_window) return isCurrentDay;
+        const exDate = new Date(ex.start_window);
+        return exDate.getDate() === dayNum && exDate.getMonth() === d.getMonth();
+      });
+
+      days.push({
+        day: dayNames[i],
+        date: dayNum,
+        fullDate: d,
+        hasEvents,
+        isToday: isCurrentDay
+      });
+    }
+    return days;
+  };
+
+  const weekDays = getWeekDays();
+
+  // Helper to format ISO dates safely in local timezone without date shifts
+  const parseExamSchedule = (exam: Exam): ProcessedScheduledItem => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    if (exam.start_window) {
+      startDate = new Date(exam.start_window);
+    } else {
+      startDate = new Date();
+    }
+
+    if (exam.end_window) {
+      endDate = new Date(exam.end_window);
+    } else {
+      endDate = new Date(startDate.getTime() + (exam.duration_minutes || 60) * 60 * 1000);
+    }
+
+    const isToday = startDate.toDateString() === now.toDateString();
+    const isPast = endDate < now;
+    const isWithinWindow = now >= startDate && now <= endDate;
+
+    let status: 'active' | 'upcoming' | 'upcoming_today' | 'completed';
+    if (isPast) {
+      status = 'completed';
+    } else if (isWithinWindow || (isToday && exam.is_published)) {
+      status = 'active';
+    } else if (isToday) {
+      status = 'upcoming_today';
+    } else {
+      status = 'upcoming';
+    }
+
+    const dateStr = startDate.toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    const timeStart = startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const timeEnd = endDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const timeStr = `${timeStart} - ${timeEnd}`;
+
+    // Proctoring description
+    const cfg = exam.proctoring_config;
+    let proctoringDesc = 'Standard Verification';
+    if (cfg?.webcam_required && cfg?.gaze_tracking) {
+      proctoringDesc = 'AI Full Proctoring (MediaPipe Edge ML)';
+    } else if (cfg?.webcam_required) {
+      proctoringDesc = 'Camera & Identity Monitoring';
+    } else if (cfg?.max_tab_switches) {
+      proctoringDesc = 'Tab & Focus Tracking';
+    }
+
+    return {
+      id: `sched-${exam.id}`,
+      examId: exam.id,
+      title: exam.title,
+      subject: exam.subject,
+      code: exam.subject.substring(0, 4).toUpperCase() + '101',
+      date: dateStr,
+      time: timeStr,
+      dayDate: startDate.getDate(),
+      duration: `${exam.duration_minutes} mins`,
+      status,
+      type: exam.is_published ? 'Formal Proctored Exam' : 'Draft Assessment',
+      examiner: 'Exam Department / Faculty',
+      proctoring: proctoringDesc,
+      room: 'Virtual Room A-1',
+      totalMarks: exam.total_marks || 100,
+      rawStart: exam.start_window,
+      rawEnd: exam.end_window,
+      rawDurationMinutes: exam.duration_minutes,
+      rawInstructions: exam.instructions
+    };
+  };
+
+  // Convert raw exams to processed scheduled items
+  const scheduledItems: ProcessedScheduledItem[] = exams.map(parseExamSchedule);
 
   // Filter items
   const filteredItems = scheduledItems.filter(item => {
-    if (selectedFilter === 'today') return item.dayDate === 15;
-    if (selectedFilter === 'upcoming') return item.dayDate >= 15 && item.status !== 'completed';
-    if (selectedFilter === 'completed') return item.status === 'completed';
+    if (selectedFilter === 'today') {
+      return item.dayDate === today.getDate();
+    }
+    if (selectedFilter === 'upcoming') {
+      return item.status === 'upcoming' || item.status === 'upcoming_today';
+    }
+    if (selectedFilter === 'completed') {
+      return item.status === 'completed';
+    }
     return true; // all
   });
 
-  // Calendar .ics download simulator
+  // Calendar .ics download generated from actual synchronized exams
   const handleExportCalendar = () => {
-    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Examora Intelligent Examination Platform//EN\nBEGIN:VEVENT\nSUMMARY:Algorithms & Advanced Data Structures Final\nDESCRIPTION:Examora AI-Proctored Examination\\nRoom: Virtual Room A-1\nDTSTART:20260915T100000Z\nDTEND:20260915T113000Z\nEND:VEVENT\nEND:VCALENDAR`;
+    if (scheduledItems.length === 0) {
+      alert('No scheduled exams available to export.');
+      return;
+    }
+
+    const formatIcsDate = (dateObj: Date) => {
+      return dateObj.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    let icsEvents = '';
+    scheduledItems.forEach(item => {
+      const startD = item.rawStart ? new Date(item.rawStart) : new Date();
+      const endD = item.rawEnd ? new Date(item.rawEnd) : new Date(startD.getTime() + item.rawDurationMinutes * 60000);
+      
+      icsEvents += `BEGIN:VEVENT\nSUMMARY:${item.title}\nDESCRIPTION:${item.subject} (${item.duration}) - ${item.proctoring}\\nRoom: ${item.room}\nDTSTART:${formatIcsDate(startD)}\nDTEND:${formatIcsDate(endD)}\nUID:${item.examId}@examora.io\nSTATUS:CONFIRMED\nEND:VEVENT\n`;
+    });
+
+    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Examora Intelligent Examination Platform//EN\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n${icsEvents}END:VCALENDAR`;
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
     link.href = window.URL.createObjectURL(blob);
@@ -142,6 +252,120 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Open modal for creating a new exam schedule
+  const handleOpenCreateModal = () => {
+    setEditingExamId(null);
+    setModalTitle('');
+    setModalSubject('Computer Science');
+    setModalInstructions('Proctored examination. Web camera, audio, and browser focus enforced.');
+    setModalDuration(60);
+
+    // Default start window: today at next hour
+    const nextHour = new Date();
+    nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+    const endHour = new Date(nextHour.getTime() + 60 * 60 * 1000);
+
+    // Format for datetime-local (YYYY-MM-DDTHH:mm)
+    const toLocalISO = (d: Date) => {
+      const offset = d.getTimezoneOffset() * 60000;
+      return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+    };
+
+    setModalStartWindow(toLocalISO(nextHour));
+    setModalEndWindow(toLocalISO(endHour));
+    setActionError(null);
+    setIsModalOpen(true);
+  };
+
+  // Open modal for editing/rescheduling an existing exam
+  const handleOpenEditModal = (item: ProcessedScheduledItem) => {
+    setEditingExamId(item.examId);
+    setModalTitle(item.title);
+    setModalSubject(item.subject);
+    setModalInstructions(item.rawInstructions || '');
+    setModalDuration(item.rawDurationMinutes);
+
+    const toLocalISO = (isoStr?: string, defaultDate = new Date()) => {
+      const d = isoStr ? new Date(isoStr) : defaultDate;
+      const offset = d.getTimezoneOffset() * 60000;
+      return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+    };
+
+    setModalStartWindow(toLocalISO(item.rawStart));
+    setModalEndWindow(toLocalISO(item.rawEnd, new Date(Date.now() + item.rawDurationMinutes * 60000)));
+    setActionError(null);
+    setIsModalOpen(true);
+  };
+
+  // Submit Schedule Modal (Create or Reschedule)
+  const handleModalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setActionError(null);
+
+    try {
+      const startISO = modalStartWindow ? new Date(modalStartWindow).toISOString() : undefined;
+      const endISO = modalEndWindow ? new Date(modalEndWindow).toISOString() : undefined;
+
+      if (startISO && endISO && new Date(startISO) >= new Date(endISO)) {
+        throw new Error('End schedule window must be after the start schedule window.');
+      }
+
+      if (editingExamId) {
+        // Update / Reschedule existing exam
+        await api.updateExam(editingExamId, {
+          title: modalTitle,
+          subject: modalSubject,
+          instructions: modalInstructions,
+          duration_minutes: modalDuration,
+          start_window: startISO,
+          end_window: endISO,
+        });
+      } else {
+        // Create new scheduled exam
+        await api.createExam({
+          title: modalTitle,
+          subject: modalSubject,
+          instructions: modalInstructions,
+          duration_minutes: modalDuration,
+          start_window: startISO,
+          end_window: endISO,
+          is_published: true,
+          blueprint_rules: { easy_count: 3, medium_count: 4, hard_count: 1 },
+          proctoring_config: {
+            webcam_required: true,
+            gaze_tracking: true,
+            multi_face_detection: true,
+            max_tab_switches: 3
+          }
+        });
+      }
+
+      // Close modal and broadcast update to all tabs/components
+      setIsModalOpen(false);
+      window.dispatchEvent(new CustomEvent('examora_exams_updated'));
+      await loadExams();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to save exam schedule');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Delete / Cancel Exam
+  const handleDeleteExam = async (examId: string, title: string) => {
+    const confirmed = window.confirm(`Are you sure you want to cancel and delete "${title}"? Stale schedule data will be removed from all views.`);
+    if (!confirmed) return;
+
+    try {
+      await api.deleteExam(examId);
+      window.dispatchEvent(new CustomEvent('examora_exams_updated'));
+      await loadExams();
+    } catch (err: any) {
+      alert(`Failed to delete exam: ${err.message || 'Error occurred'}`);
+    }
   };
 
   return (
@@ -169,11 +393,11 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               border: '1px solid rgba(99, 102, 241, 0.3)',
               fontWeight: 700
             }}>
-              Semester Fall 2026
+              Live Synchronized
             </span>
           </div>
           <p style={{ fontSize: '0.86rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
-            Track your official proctored test dates, mock tests, and submission windows.
+            Unified schedule source of truth. Synchronized across candidate portals, examiner desks, and assessments.
           </p>
         </div>
 
@@ -196,7 +420,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
           {currentUser.role !== 'student' && (
             <button
-              onClick={() => onNavigateTab && onNavigateTab('builder')}
+              onClick={handleOpenCreateModal}
               className="btn btn-primary"
               style={{
                 padding: '8px 14px',
@@ -242,14 +466,22 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button 
               className="dash-icon-btn" 
-              onClick={() => setCurrentMonth('August 2026')}
+              onClick={() => {
+                const prev = new Date();
+                prev.setMonth(prev.getMonth() - 1);
+                setCurrentMonth(prev.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
+              }}
               title="Previous Month"
             >
               <ChevronLeft size={16} />
             </button>
             <button 
-              className="dash-icon-btn"
-              onClick={() => setCurrentMonth('October 2026')}
+              className="dash-icon-btn" 
+              onClick={() => {
+                const nxt = new Date();
+                nxt.setMonth(nxt.getMonth() + 1);
+                setCurrentMonth(nxt.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
+              }}
               title="Next Month"
             >
               <ChevronRight size={16} />
@@ -328,7 +560,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {[
           { id: 'all', label: 'All Scheduled' },
-          { id: 'today', label: 'Today (Sep 15)' },
+          { id: 'today', label: `Today (${today.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})` },
           { id: 'upcoming', label: 'Upcoming' },
           { id: 'completed', label: 'Completed' },
         ].map((f) => (
@@ -355,158 +587,427 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
       {/* 4. Scheduled Exam Items List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {filteredItems.map((item) => {
-          const isActive = item.status === 'active';
-          const isCompleted = item.status === 'completed';
+        {isLoading ? (
+          <div className="dash-card" style={{ padding: '3rem', textAlign: 'center', color: '#94A3B8' }}>
+            <Loader2 className="animate-spin" size={28} style={{ margin: '0 auto 12px auto', color: '#3B5EDB' }} />
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>Synchronizing examination schedules...</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="dash-card" style={{ padding: '3rem', textAlign: 'center', color: '#94A3B8' }}>
+            <CalendarIcon size={36} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'inherit', margin: '0 0 6px 0' }}>
+              No Examinations Match This Filter
+            </h4>
+            <p style={{ fontSize: '0.84rem', margin: 0 }}>
+              {currentUser.role !== 'student' 
+                ? 'Click "Schedule New Exam" above to add an examination to the calendar.' 
+                : 'Check "All Scheduled" to browse other upcoming tests.'}
+            </p>
+          </div>
+        ) : (
+          filteredItems.map((item) => {
+            const isActive = item.status === 'active';
+            const isCompleted = item.status === 'completed';
 
-          return (
-            <div
-              key={item.id}
-              className="dash-card"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '1.25rem 1.5rem',
-                borderLeft: isActive 
-                  ? '4px solid #10B981' 
-                  : isCompleted 
-                  ? '4px solid #94A3B8' 
-                  : '4px solid #3B5EDB',
-                transition: 'transform 0.15s ease'
-              }}
-            >
-              {/* Left Details */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                <div style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: isActive 
-                    ? 'rgba(16, 185, 129, 0.15)' 
-                    : isCompleted
-                    ? 'rgba(148, 163, 184, 0.15)'
-                    : 'rgba(59, 94, 219, 0.15)',
+            return (
+              <div
+                key={item.id}
+                className="dash-card"
+                style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isActive ? '#10B981' : isCompleted ? '#94A3B8' : '#3B5EDB',
-                  flexShrink: 0
-                }}>
-                  {isActive ? <Sparkles size={20} /> : <BookOpen size={20} />}
+                  justifyContent: 'space-between',
+                  padding: '1.25rem 1.5rem',
+                  borderLeft: isActive 
+                    ? '4px solid #10B981' 
+                    : isCompleted 
+                    ? '4px solid #94A3B8' 
+                    : '4px solid #3B5EDB',
+                  transition: 'transform 0.15s ease'
+                }}
+              >
+                {/* Left Details */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: isActive 
+                      ? 'rgba(16, 185, 129, 0.15)' 
+                      : isCompleted
+                      ? 'rgba(148, 163, 184, 0.15)'
+                      : 'rgba(59, 94, 219, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isActive ? '#10B981' : isCompleted ? '#94A3B8' : '#3B5EDB',
+                    flexShrink: 0
+                  }}>
+                    {isActive ? <Sparkles size={20} /> : <BookOpen size={20} />}
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(59, 94, 219, 0.1)',
+                        color: '#3B5EDB',
+                        textTransform: 'uppercase'
+                      }}>
+                        {item.code}
+                      </span>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
+                        {item.title}
+                      </h3>
+                      {isActive && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#10B981',
+                          border: '1px solid rgba(16, 185, 129, 0.4)'
+                        }}>
+                          ● READY TO LAUNCH
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Metadata Row */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      fontSize: '0.78rem',
+                      color: '#94A3B8',
+                      marginTop: '6px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CalendarIcon size={12} />
+                        {item.date}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={12} />
+                        {item.time} ({item.duration})
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Shield size={12} color="#06B6D4" />
+                        {item.proctoring}
+                      </span>
+                      <span>Subject: <strong>{item.subject}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Action Controls */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {currentUser.role !== 'student' && (
+                    <>
+                      <button
+                        onClick={() => handleOpenEditModal(item)}
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                        title="Reschedule / Edit parameters"
+                      >
+                        <Edit3 size={13} />
+                        <span>Reschedule</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteExam(item.examId, item.title)}
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '8px 10px',
+                          fontSize: '0.78rem',
+                          color: '#EF4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title="Cancel & Delete exam"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  )}
+
+                  {isActive ? (
+                    <button
+                      onClick={() => onStartExam(item.examId)}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '10px 18px',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)'
+                      }}
+                    >
+                      <span>Launch & Start Exam</span>
+                      <ArrowRight size={16} />
+                    </button>
+                  ) : isCompleted ? (
+                    <button
+                      onClick={() => onViewResults && onViewResults(item.examId)}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <CheckCircle2 size={14} color="#10B981" />
+                      <span>View Scorecard</span>
+                    </button>
+                  ) : (
+                    <span style={{
+                      fontSize: '0.78rem',
+                      color: '#94A3B8',
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}>
+                      Opens at {item.time.split('-')[0].trim()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 5. Schedule / Reschedule Modal */}
+      {isModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1rem'
+        }}>
+          <div className="dash-card" style={{
+            width: '100%',
+            maxWidth: '560px',
+            padding: '2rem',
+            background: 'var(--bg-card, #1E293B)',
+            borderRadius: '16px',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'inherit' }}>
+                  {editingExamId ? 'Reschedule Examination' : 'Schedule New Examination'}
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: '4px 0 0 0' }}>
+                  Configure start/end window timestamps with automatic timezone synchronization.
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="dash-icon-btn"
+                style={{ padding: '6px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {actionError && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#FCA5A5',
+                fontSize: '0.84rem',
+                marginBottom: '1rem'
+              }}>
+                {actionError}
+              </div>
+            )}
+
+            <form onSubmit={handleModalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', display: 'block', marginBottom: '5px' }}>
+                  Exam Title
+                </label>
+                <input
+                  type="text"
+                  value={modalTitle}
+                  onChange={(e) => setModalTitle(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: 'inherit',
+                    fontSize: '0.88rem'
+                  }}
+                  placeholder="e.g. Distributed Systems Final"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', display: 'block', marginBottom: '5px' }}>
+                    Subject
+                  </label>
+                  <input
+                    type="text"
+                    value={modalSubject}
+                    onChange={(e) => setModalSubject(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: 'inherit',
+                      fontSize: '0.88rem'
+                    }}
+                  />
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(59, 94, 219, 0.1)',
-                      color: '#3B5EDB',
-                      textTransform: 'uppercase'
-                    }}>
-                      {item.code}
-                    </span>
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-                      {item.title}
-                    </h3>
-                    {isActive && (
-                      <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        color: '#10B981',
-                        border: '1px solid rgba(16, 185, 129, 0.4)'
-                      }}>
-                        ● READY TO LAUNCH
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Metadata Row */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    fontSize: '0.78rem',
-                    color: '#94A3B8',
-                    marginTop: '6px',
-                    flexWrap: 'wrap'
-                  }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CalendarIcon size={12} />
-                      {item.date}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={12} />
-                      {item.time} ({item.duration})
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Shield size={12} color="#06B6D4" />
-                      {item.proctoring}
-                    </span>
-                    <span>Examiner: <strong>{item.examiner}</strong></span>
-                  </div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', display: 'block', marginBottom: '5px' }}>
+                    Duration (Mins)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="360"
+                    value={modalDuration}
+                    onChange={(e) => setModalDuration(parseInt(e.target.value) || 60)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: 'inherit',
+                      fontSize: '0.88rem'
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* Right Action Button */}
-              <div>
-                {isActive ? (
-                  <button
-                    onClick={() => onStartExam(item.examId)}
-                    className="btn btn-primary"
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', display: 'block', marginBottom: '5px' }}>
+                    Start Schedule Window
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={modalStartWindow}
+                    onChange={(e) => setModalStartWindow(e.target.value)}
+                    required
                     style={{
-                      padding: '10px 18px',
-                      borderRadius: '10px',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)'
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: 'inherit',
+                      fontSize: '0.85rem'
                     }}
-                  >
-                    <span>Launch & Start Exam</span>
-                    <ArrowRight size={16} />
-                  </button>
-                ) : isCompleted ? (
-                  <button
-                    onClick={() => onViewResults && onViewResults(item.id)}
-                    className="btn btn-secondary"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', display: 'block', marginBottom: '5px' }}>
+                    End Schedule Window
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={modalEndWindow}
+                    onChange={(e) => setModalEndWindow(e.target.value)}
+                    required
                     style={{
-                      padding: '8px 14px',
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: 'inherit',
+                      fontSize: '0.85rem'
                     }}
-                  >
-                    <CheckCircle2 size={14} color="#10B981" />
-                    <span>View Scorecard</span>
-                  </button>
-                ) : (
-                  <span style={{
-                    fontSize: '0.78rem',
-                    color: '#94A3B8',
-                    fontWeight: 600,
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
-                  }}>
-                    Opens at {item.time.split('-')[0].trim()}
-                  </span>
-                )}
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', display: 'block', marginBottom: '5px' }}>
+                  Candidate Instructions
+                </label>
+                <input
+                  type="text"
+                  value={modalInstructions}
+                  onChange={(e) => setModalInstructions(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: 'inherit',
+                    fontSize: '0.85rem'
+                  }}
+                  placeholder="e.g. Strict proctoring. 3 tab switches maximum."
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn btn-primary"
+                  style={{ padding: '8px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {isSubmitting && <Loader2 className="animate-spin" size={14} />}
+                  <span>{editingExamId ? 'Save Rescheduled Window' : 'Confirm & Schedule'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

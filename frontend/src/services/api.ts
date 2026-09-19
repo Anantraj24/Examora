@@ -217,6 +217,31 @@ class ApiService {
     return resp.json();
   }
 
+  async updateExam(examId: string, examData: Partial<Exam> & { question_ids?: string[] }): Promise<Exam> {
+    const resp = await fetch(`${API_BASE_URL}/exams/${examId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(examData),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to update exam' }));
+      throw new Error(err.detail || 'Failed to update exam');
+    }
+    return resp.json();
+  }
+
+  async deleteExam(examId: string): Promise<{ message: string; id: string }> {
+    const resp = await fetch(`${API_BASE_URL}/exams/${examId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Failed to delete exam' }));
+      throw new Error(err.detail || 'Failed to delete exam');
+    }
+    return resp.json();
+  }
+
   // ----------------- Questions API -----------------
   async getQuestions(subject?: string): Promise<Question[]> {
     const url = subject ? `${API_BASE_URL}/questions/?subject=${encodeURIComponent(subject)}` : `${API_BASE_URL}/questions/`;
