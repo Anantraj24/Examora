@@ -3,9 +3,10 @@ import {
   LayoutGrid, BookOpen, Calendar, FolderMinus, MessageSquare, 
   Award, Settings, LogOut, Search, ChevronDown, Mail, Bell, 
   Sun, Moon, Sparkles, Shield, UserCheck, Bot, Layers, PlusCircle, BarChart2,
-  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Menu
+  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Menu, CheckCircle2
 } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface DashboardLayoutProps {
   currentTab: string;
@@ -28,44 +29,47 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const { currentLanguage, currentOption, setLanguage, supportedLanguages, t } = useTranslation();
 
   // Role-Aware Navigation Tabs for seamless sidebar switching
   const getNavItems = () => {
     if (currentUser.role === 'examiner') {
       return [
-        { id: 'grading', label: 'Examiner Studio', icon: Bot },
-        { id: 'proctor', label: 'Live Proctoring', icon: Shield },
-        { id: 'schedule', label: 'Schedule', icon: Calendar },
-        { id: 'builder', label: 'Exam Builder', icon: Layers },
-        { id: 'questions', label: 'Question Bank', icon: PlusCircle },
-        { id: 'results', label: 'Cohort Analytics', icon: BarChart2 },
-        { id: 'dashboard', label: 'Student View', icon: LayoutGrid },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'grading', label: t('nav.grading', 'Examiner Studio'), icon: Bot },
+        { id: 'proctor', label: t('nav.proctor', 'Live Proctoring'), icon: Shield },
+        { id: 'schedule', label: t('nav.schedule', 'Schedule'), icon: Calendar },
+        { id: 'builder', label: t('nav.builder', 'Exam Builder'), icon: Layers },
+        { id: 'questions', label: t('nav.questions', 'Question Bank'), icon: PlusCircle },
+        { id: 'results', label: t('nav.results', 'Cohort Analytics'), icon: BarChart2 },
+        { id: 'dashboard', label: t('nav.student_view', 'Student View'), icon: LayoutGrid },
+        { id: 'settings', label: t('nav.settings', 'Settings'), icon: Settings },
       ];
     }
     if (currentUser.role === 'admin') {
       return [
-        { id: 'proctor', label: 'Mission Control', icon: Shield },
-        { id: 'grading', label: 'Evaluations', icon: Bot },
-        { id: 'builder', label: 'Blueprint Builder', icon: Layers },
-        { id: 'questions', label: 'Question Bank', icon: PlusCircle },
-        { id: 'schedule', label: 'Master Schedule', icon: Calendar },
-        { id: 'results', label: 'Analytics', icon: BarChart2 },
-        { id: 'dashboard', label: 'Student View', icon: LayoutGrid },
-        { id: 'settings', label: 'System Settings', icon: Settings },
+        { id: 'proctor', label: t('nav.proctor', 'Mission Control'), icon: Shield },
+        { id: 'grading', label: t('nav.grading', 'Evaluations'), icon: Bot },
+        { id: 'builder', label: t('nav.builder', 'Blueprint Builder'), icon: Layers },
+        { id: 'questions', label: t('nav.questions', 'Question Bank'), icon: PlusCircle },
+        { id: 'schedule', label: t('nav.schedule', 'Master Schedule'), icon: Calendar },
+        { id: 'results', label: t('nav.results', 'Analytics'), icon: BarChart2 },
+        { id: 'dashboard', label: t('nav.student_view', 'Student View'), icon: LayoutGrid },
+        { id: 'settings', label: t('nav.settings', 'System Settings'), icon: Settings },
       ];
     }
     // Default: Student / Candidate
     return [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-      { id: 'schedule', label: 'Schedule', icon: Calendar },
-      { id: 'assessments', label: 'Exams & Tests', icon: Award },
-      { id: 'results', label: 'My Scorecard', icon: BarChart2 },
-      { id: 'materials', label: 'Materials', icon: FolderMinus },
-      { id: 'forum', label: 'Forum', icon: MessageSquare },
-      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'dashboard', label: t('nav.dashboard', 'Dashboard'), icon: LayoutGrid },
+      { id: 'schedule', label: t('nav.schedule', 'Schedule'), icon: Calendar },
+      { id: 'assessments', label: t('nav.assessments', 'Exams & Tests'), icon: Award },
+      { id: 'results', label: t('nav.scorecard', 'My Scorecard'), icon: BarChart2 },
+      { id: 'materials', label: t('nav.materials', 'Materials'), icon: FolderMinus },
+      { id: 'forum', label: t('nav.forum', 'Forum'), icon: MessageSquare },
+      { id: 'settings', label: t('nav.settings', 'Settings'), icon: Settings },
     ];
   };
 
@@ -253,7 +257,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <div className="dash-search-box">
               <input 
                 type="text" 
-                placeholder="Search"
+                placeholder={t('topbar.search', 'Search examinations, lessons, question banks...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -297,9 +301,72 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </button>
 
             {/* Language Selector */}
-            <div className="dash-pill-dropdown">
-              <span>ENG</span>
-              <ChevronDown size={14} />
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="dash-pill-dropdown"
+                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Change display language"
+              >
+                <span>{currentOption.flag}</span>
+                <span style={{ fontWeight: 700 }}>{currentOption.shortCode}</span>
+                <ChevronDown size={14} />
+              </div>
+
+              {showLanguageDropdown && (
+                <div 
+                  className="dash-card"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '180px',
+                    padding: '6px',
+                    borderRadius: '12px',
+                    boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                    background: isDarkMode ? '#1E293B' : '#FFFFFF'
+                  }}
+                >
+                  {supportedLanguages.map((lang) => {
+                    const isSelected = lang.code === currentLanguage;
+                    return (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          setLanguage(lang.code);
+                          setShowLanguageDropdown(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: isSelected ? 'rgba(59, 94, 219, 0.15)' : 'transparent',
+                          color: isSelected ? '#3B5EDB' : isDarkMode ? '#F8FAFC' : '#1E293B',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          fontSize: '0.84rem',
+                          textAlign: 'left',
+                          transition: 'background 0.15s ease'
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>{lang.flag}</span>
+                          <span>{lang.nativeName}</span>
+                        </span>
+                        {isSelected && <CheckCircle2 size={13} color="#3B5EDB" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Message / Mail icon */}
