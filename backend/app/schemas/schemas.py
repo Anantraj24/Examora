@@ -136,6 +136,9 @@ class ExamOut(ExamBase):
     created_at: datetime
     total_questions: int = 0
     total_marks: float = 0.0
+    student_session_status: Optional[str] = None
+    student_session_id: Optional[str] = None
+    is_completed: bool = False
     
     model_config = ConfigDict(from_attributes=True)
 

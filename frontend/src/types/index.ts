@@ -62,6 +62,17 @@ export interface Exam {
   is_published: boolean;
   total_questions?: number;
   total_marks?: number;
+  student_session_status?: 'not_started' | 'in_progress' | 'submitted' | 'timed_out' | 'disqualified';
+  student_session_id?: string;
+  is_completed?: boolean;
+}
+
+export interface CohortAnalyticsData {
+  total_candidates: number;
+  average_score: number;
+  highest_score: number;
+  lowest_score: number;
+  score_distribution: Record<string, number>;
 }
 
 export interface CourseMaterial {

@@ -2,7 +2,7 @@ import {
   User, Exam, Question, StudentExamPaper,
   GradingQueueItem, ExamResultData, UserRole, CourseMaterial,
   ForumPost, ForumReply, ForumPaginatedResponse,
-  AppNotification, NotificationListResponse, AcademicEvent
+  AppNotification, NotificationListResponse, AcademicEvent, CohortAnalyticsData
 } from '../types';
 
 
@@ -509,6 +509,14 @@ class ApiService {
       headers: this.getHeaders(),
     });
     if (!resp.ok) throw new Error('Failed to load exam results');
+    return resp.json();
+  }
+
+  async getCohortAnalytics(examId: string): Promise<CohortAnalyticsData> {
+    const resp = await fetch(`${API_BASE_URL}/results/cohort-analytics/${examId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) throw new Error('Failed to load cohort analytics');
     return resp.json();
   }
 

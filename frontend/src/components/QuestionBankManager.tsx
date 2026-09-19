@@ -175,6 +175,9 @@ export const QuestionBankManager: React.FC = () => {
               <option value="Computer Science">Computer Science</option>
               <option value="Data Structures">Data Structures</option>
               <option value="AI & ML">AI & Machine Learning</option>
+              <option value="Distributed Systems">Distributed Systems</option>
+              <option value="Cloud Architecture">Cloud Architecture</option>
+              <option value="Operating Systems">Operating Systems</option>
             </select>
           </div>
 

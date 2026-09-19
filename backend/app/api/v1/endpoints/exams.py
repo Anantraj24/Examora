@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.api.v1.endpoints.auth import get_current_user, require_role
-from app.models.models import User, UserRole, Exam, ExamQuestion, QuestionBank
+from app.models.models import User, UserRole, Exam, ExamQuestion, QuestionBank, ExamSession, SessionStatus
 from app.schemas.schemas import ExamCreate, ExamUpdate, ExamOut
 
 router = APIRouter()
@@ -73,12 +73,34 @@ async def list_exams(
         
     result = await db.execute(query)
     exams = result.scalars().all()
+
+    student_sessions_map = {}
+    if current_user.role == UserRole.STUDENT and exams:
+        exam_ids = [ex.id for ex in exams]
+        sess_query = select(ExamSession).where(
+            ExamSession.student_id == current_user.id,
+            ExamSession.exam_id.in_(exam_ids)
+        )
+        sess_res = await db.execute(sess_query)
+        for s in sess_res.scalars().all():
+            student_sessions_map[s.exam_id] = s
     
     out_list = []
     for ex in exams:
         out = ExamOut.model_validate(ex)
         out.total_questions = len(ex.questions) if ex.questions else 0
         out.total_marks = sum(eq.question.max_marks for eq in ex.questions if eq.question) if ex.questions else 0.0
+        
+        if current_user.role == UserRole.STUDENT:
+            s = student_sessions_map.get(ex.id)
+            if s:
+                out.student_session_id = s.id
+                status_str = (s.status.value if hasattr(s.status, 'value') else str(s.status)).lower()
+                out.student_session_status = status_str
+                out.is_completed = (s.status in [SessionStatus.SUBMITTED, SessionStatus.TIMED_OUT, SessionStatus.DISQUALIFIED])
+            else:
+                out.student_session_status = "not_started"
+                out.is_completed = False
         out_list.append(out)
         
     return out_list
@@ -101,6 +123,22 @@ async def get_exam(
     out = ExamOut.model_validate(exam)
     out.total_questions = len(exam.questions) if exam.questions else 0
     out.total_marks = sum(eq.question.max_marks for eq in exam.questions if eq.question) if exam.questions else 0.0
+
+    if current_user.role == UserRole.STUDENT:
+        sess_query = select(ExamSession).where(
+            ExamSession.exam_id == exam.id,
+            ExamSession.student_id == current_user.id
+        )
+        s = (await db.execute(sess_query)).scalar_one_or_none()
+        if s:
+            out.student_session_id = s.id
+            status_str = (s.status.value if hasattr(s.status, 'value') else str(s.status)).lower()
+            out.student_session_status = status_str
+            out.is_completed = (s.status in [SessionStatus.SUBMITTED, SessionStatus.TIMED_OUT, SessionStatus.DISQUALIFIED])
+        else:
+            out.student_session_status = "not_started"
+            out.is_completed = False
+
     return out
 
 @router.put("/{exam_id}", response_model=ExamOut)

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
   Sparkles, Shield, CheckCircle2, AlertCircle, ArrowRight, 
-  Download, Plus, Filter, BookOpen, Layers, Trash2, Edit3, X, Loader2
+  Download, Plus, Filter, BookOpen, Layers, Trash2, Edit3, X, Loader2, BarChart2
 } from 'lucide-react';
 import { User, Exam } from '../types';
 import { api } from '../services/api';
@@ -24,12 +24,13 @@ interface ProcessedScheduledItem {
   time: string;
   dayDate: number;
   duration: string;
-  status: 'active' | 'upcoming' | 'upcoming_today' | 'completed';
+  status: 'active' | 'upcoming' | 'upcoming_today' | 'completed' | 'in_progress' | 'expired';
   type: string;
   examiner: string;
   proctoring: string;
   room: string;
   totalMarks: number;
+  rawSessionId?: string;
   rawStart?: string;
   rawEnd?: string;
   rawDurationMinutes: number;
@@ -152,15 +153,31 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     const isPast = endDate < now;
     const isWithinWindow = now >= startDate && now <= endDate;
 
-    let status: 'active' | 'upcoming' | 'upcoming_today' | 'completed';
-    if (isPast) {
-      status = 'completed';
-    } else if (isWithinWindow || (isToday && exam.is_published)) {
-      status = 'active';
-    } else if (isToday) {
-      status = 'upcoming_today';
+    let status: 'active' | 'upcoming' | 'upcoming_today' | 'completed' | 'in_progress' | 'expired';
+    if (currentUser.role === 'student') {
+      if (exam.is_completed || exam.student_session_status === 'submitted') {
+        status = 'completed';
+      } else if (exam.student_session_status === 'in_progress') {
+        status = 'in_progress';
+      } else if (isPast) {
+        status = 'expired';
+      } else if (isWithinWindow || (isToday && exam.is_published)) {
+        status = 'active';
+      } else if (isToday) {
+        status = 'upcoming_today';
+      } else {
+        status = 'upcoming';
+      }
     } else {
-      status = 'upcoming';
+      if (isPast) {
+        status = 'completed';
+      } else if (isWithinWindow || (isToday && exam.is_published)) {
+        status = 'active';
+      } else if (isToday) {
+        status = 'upcoming_today';
+      } else {
+        status = 'upcoming';
+      }
     }
 
     const dateStr = startDate.toLocaleDateString(undefined, {
@@ -201,6 +218,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       proctoring: proctoringDesc,
       room: 'Virtual Room A-1',
       totalMarks: exam.total_marks || 100,
+      rawSessionId: exam.student_session_id,
       rawStart: exam.start_window,
       rawEnd: exam.end_window,
       rawDurationMinutes: exam.duration_minutes,
@@ -220,9 +238,10 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       return item.status === 'upcoming' || item.status === 'upcoming_today';
     }
     if (selectedFilter === 'completed') {
-      return item.status === 'completed';
+      return item.status === 'completed' || item.status === 'expired';
     }
-    return true; // all
+    return true;
+ // all
   });
 
   // Calendar .ics download generated from actual synchronized exams
@@ -607,7 +626,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         ) : (
           filteredItems.map((item) => {
             const isActive = item.status === 'active';
+            const isInProgress = item.status === 'in_progress';
             const isCompleted = item.status === 'completed';
+            const isExpired = item.status === 'expired';
 
             return (
               <div
@@ -662,7 +683,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                       <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
                         {item.title}
                       </h3>
-                      {isActive && (
+                      {isActive && !isInProgress && (
                         <span style={{
                           fontSize: '0.65rem',
                           fontWeight: 700,
@@ -673,6 +694,45 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                           border: '1px solid rgba(16, 185, 129, 0.4)'
                         }}>
                           ● READY TO LAUNCH
+                        </span>
+                      )}
+                      {isInProgress && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          color: '#F59E0B',
+                          border: '1px solid rgba(245, 158, 11, 0.4)'
+                        }}>
+                          ● IN PROGRESS
+                        </span>
+                      )}
+                      {isCompleted && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10B981',
+                          border: '1px solid rgba(16, 185, 129, 0.3)'
+                        }}>
+                          ✓ COMPLETED
+                        </span>
+                      )}
+                      {isExpired && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: '#EF4444',
+                          border: '1px solid rgba(239, 68, 68, 0.3)'
+                        }}>
+                          ● CLOSED
                         </span>
                       )}
                     </div>
@@ -742,7 +802,26 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                     </>
                   )}
 
-                  {isActive ? (
+                  {isInProgress ? (
+                    <button
+                      onClick={() => onStartExam(item.examId)}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '10px 18px',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                        boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)'
+                      }}
+                    >
+                      <span>Resume Exam</span>
+                      <ArrowRight size={16} />
+                    </button>
+                  ) : isActive ? (
                     <button
                       onClick={() => onStartExam(item.examId)}
                       className="btn btn-primary"
@@ -762,7 +841,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                     </button>
                   ) : isCompleted ? (
                     <button
-                      onClick={() => onViewResults && onViewResults(item.examId)}
+                      onClick={() => {
+                        if (currentUser.role === 'student') {
+                          onViewResults && onViewResults(item.rawSessionId || item.examId);
+                        } else {
+                          onNavigateTab ? onNavigateTab('results') : (onViewResults && onViewResults(item.examId));
+                        }
+                      }}
                       className="btn btn-secondary"
                       style={{
                         padding: '8px 14px',
@@ -772,9 +857,30 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                         gap: '6px'
                       }}
                     >
-                      <CheckCircle2 size={14} color="#10B981" />
-                      <span>View Scorecard</span>
+                      {currentUser.role === 'student' ? (
+                        <>
+                          <CheckCircle2 size={14} color="#10B981" />
+                          <span>View Scorecard</span>
+                        </>
+                      ) : (
+                        <>
+                          <BarChart2 size={14} color="#6366F1" />
+                          <span>Cohort Results</span>
+                        </>
+                      )}
                     </button>
+                  ) : isExpired ? (
+                    <span style={{
+                      fontSize: '0.78rem',
+                      color: '#EF4444',
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.2)'
+                    }}>
+                      Window Closed
+                    </span>
                   ) : (
                     <span style={{
                       fontSize: '0.78rem',

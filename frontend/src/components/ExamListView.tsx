@@ -165,14 +165,34 @@ export const ExamListView: React.FC<ExamListViewProps> = ({ onStartExam, onViewR
             </div>
 
             {/* Launch Action Button */}
-            <button
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-              onClick={() => onStartExam(ex.id)}
-            >
-              Start Proctored Exam
-              <ArrowRight size={16} />
-            </button>
+            {ex.is_completed || ex.student_session_status === 'submitted' ? (
+              <button
+                className="btn btn-secondary"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                onClick={() => onViewResults(ex.student_session_id || ex.id)}
+              >
+                <CheckCircle size={16} color="#10B981" />
+                <span>View Result Scorecard</span>
+              </button>
+            ) : ex.student_session_status === 'in_progress' ? (
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}
+                onClick={() => onStartExam(ex.id)}
+              >
+                Resume Proctored Exam
+                <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => onStartExam(ex.id)}
+              >
+                Start Proctored Exam
+                <ArrowRight size={16} />
+              </button>
+            )}
           </div>
         ))}
       </div>

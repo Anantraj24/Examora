@@ -223,25 +223,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const getNavItems = () => {
     if (currentUser.role === 'examiner') {
       return [
-        { id: 'grading', label: t('nav.grading', 'Examiner Studio'), icon: Bot },
+        { id: 'dashboard', label: t('nav.dashboard', 'Overview & Studio'), icon: LayoutGrid },
+        { id: 'grading', label: t('nav.grading', 'Grading Studio'), icon: Bot },
         { id: 'proctor', label: t('nav.proctor', 'Live Proctoring'), icon: Shield },
-        { id: 'schedule', label: t('nav.schedule', 'Schedule'), icon: Calendar },
+        { id: 'schedule', label: t('nav.schedule', 'Master Schedule'), icon: Calendar },
         { id: 'builder', label: t('nav.builder', 'Exam Builder'), icon: Layers },
         { id: 'questions', label: t('nav.questions', 'Question Bank'), icon: PlusCircle },
         { id: 'results', label: t('nav.results', 'Cohort Analytics'), icon: BarChart2 },
-        { id: 'dashboard', label: t('nav.student_view', 'Student View'), icon: LayoutGrid },
         { id: 'settings', label: t('nav.settings', 'Settings'), icon: Settings },
       ];
     }
     if (currentUser.role === 'admin') {
       return [
-        { id: 'proctor', label: t('nav.proctor', 'Mission Control'), icon: Shield },
+        { id: 'dashboard', label: t('nav.dashboard', 'Mission Control'), icon: LayoutGrid },
+        { id: 'proctor', label: t('nav.proctor', 'Live Proctoring'), icon: Shield },
         { id: 'grading', label: t('nav.grading', 'Evaluations'), icon: Bot },
         { id: 'builder', label: t('nav.builder', 'Blueprint Builder'), icon: Layers },
         { id: 'questions', label: t('nav.questions', 'Question Bank'), icon: PlusCircle },
         { id: 'schedule', label: t('nav.schedule', 'Master Schedule'), icon: Calendar },
-        { id: 'results', label: t('nav.results', 'Analytics'), icon: BarChart2 },
-        { id: 'dashboard', label: t('nav.student_view', 'Student View'), icon: LayoutGrid },
+        { id: 'results', label: t('nav.results', 'Cohort Analytics'), icon: BarChart2 },
         { id: 'settings', label: t('nav.settings', 'System Settings'), icon: Settings },
       ];
     }
@@ -422,7 +422,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: isDarkMode ? '#FFFFFF' : '#1E293B' }}>
-                Dashboard for student
+                {currentUser.role === 'examiner'
+                  ? 'Examiner Studio Workspace'
+                  : currentUser.role === 'admin'
+                  ? 'Administrator Mission Control'
+                  : 'Student Candidate Portal'}
               </h1>
               <span style={{
                 fontSize: '0.68rem',

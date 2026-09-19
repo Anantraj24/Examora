@@ -726,6 +726,95 @@ async def test_upcoming_events_chronological_and_lifecycle(client: AsyncClient):
     assert not any(e["id"] == created_id for e in after_del_resp.json())
 
 
+@pytest.mark.asyncio
+async def test_student_exam_status_and_lifecycle(client: AsyncClient):
+    # 1. Register and login student
+    await client.post("/api/v1/auth/register", json={
+        "email": "lifecycle_student@examora.io",
+        "password": "password123",
+        "full_name": "Lifecycle Candidate",
+        "role": "student"
+    })
+    std_login = await client.post("/api/v1/auth/login", json={
+        "email": "lifecycle_student@examora.io",
+        "password": "password123"
+    })
+    std_token = std_login.json()["access_token"]
+    std_headers = {"Authorization": f"Bearer {std_token}"}
+
+    # 2. Login examiner to create exam
+    await client.post("/api/v1/auth/register", json={
+        "email": "lifecycle_examiner@examora.io",
+        "password": "password123",
+        "full_name": "Lifecycle Examiner Prof",
+        "role": "examiner"
+    })
+    ex_login = await client.post("/api/v1/auth/login", json={
+        "email": "lifecycle_examiner@examora.io",
+        "password": "password123"
+    })
+    ex_token = ex_login.json()["access_token"]
+    ex_headers = {"Authorization": f"Bearer {ex_token}"}
+
+    # Create question
+    q_resp = await client.post("/api/v1/questions/", json={
+        "subject": "Cloud Architecture",
+        "topic": "Microservices",
+        "question_type": "MCQ",
+        "difficulty": "medium",
+        "content": "Which pattern provides eventual consistency across distributed services?",
+        "model_answer": "Saga Pattern",
+        "max_marks": 2.0,
+        "options": [
+            {"option_text": "Saga Pattern", "is_correct": True, "sort_order": 0},
+            {"option_text": "Two-Phase Commit only", "is_correct": False, "sort_order": 1}
+        ]
+    }, headers=ex_headers)
+    q_id = q_resp.json()["id"]
+
+    # Create and publish exam
+    exam_resp = await client.post("/api/v1/exams/", json={
+        "title": "Cloud Patterns Mastery Exam",
+        "subject": "Cloud Architecture",
+        "instructions": "Answer all questions.",
+        "duration_minutes": 40,
+        "is_published": True,
+        "question_ids": [q_id]
+    }, headers=ex_headers)
+    assert exam_resp.status_code == 201
+    exam_id = exam_resp.json()["id"]
+
+    # 3. Student lists exams: must show 'not_started' and is_completed == False
+    list1 = await client.get("/api/v1/exams/", headers=std_headers)
+    assert list1.status_code == 200
+    target_exam = next((e for e in list1.json() if e["id"] == exam_id), None)
+    assert target_exam is not None
+    assert target_exam["student_session_status"] == "not_started"
+    assert target_exam["is_completed"] is False
+
+    # 4. Student starts exam
+    start_resp = await client.post("/api/v1/sessions/start", json={"exam_id": exam_id}, headers=std_headers)
+    assert start_resp.status_code == 200
+    session_id = start_resp.json()["session_id"]
+
+    # Student lists exams: must show 'in_progress' and is_completed == False
+    list2 = await client.get("/api/v1/exams/", headers=std_headers)
+    target_exam2 = next(e for e in list2.json() if e["id"] == exam_id)
+    assert target_exam2["student_session_status"] == "in_progress"
+    assert target_exam2["is_completed"] is False
+    assert target_exam2["student_session_id"] == session_id
+
+    # 5. Student submits exam
+    submit_resp = await client.post(f"/api/v1/sessions/submit-final/{session_id}", headers=std_headers)
+    assert submit_resp.status_code == 200
+
+    # 6. Student lists exams: must show 'submitted' and is_completed == True
+    list3 = await client.get("/api/v1/exams/", headers=std_headers)
+    target_exam3 = next(e for e in list3.json() if e["id"] == exam_id)
+    assert target_exam3["student_session_status"] == "submitted"
+    assert target_exam3["is_completed"] is True
+
+
 
 
 

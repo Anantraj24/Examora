@@ -17,6 +17,8 @@ const ExamBuilderView = lazy(() => import('./components/ExamBuilderView').then(m
 const ScheduleCalendarView = lazy(() => import('./components/ScheduleCalendarView').then(m => ({ default: m.ScheduleCalendarView })));
 const MaterialsView = lazy(() => import('./components/MaterialsView').then(m => ({ default: m.MaterialsView })));
 const ForumView = lazy(() => import('./components/ForumView').then(m => ({ default: m.ForumView })));
+const ExaminerDashboardView = lazy(() => import('./components/ExaminerDashboardView').then(m => ({ default: m.ExaminerDashboardView })));
+const CohortAnalyticsView = lazy(() => import('./components/CohortAnalyticsView').then(m => ({ default: m.CohortAnalyticsView })));
 
 const ViewLoadingFallback: React.FC = () => (
   <div style={{
@@ -92,6 +94,37 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Role-Based Access Control (RBAC) Tab Validator
+  const isTabAllowedForRole = (tab: string, role: UserRole): boolean => {
+    if (role === 'student') {
+      return ['dashboard', 'schedule', 'assessments', 'lessons', 'results', 'materials', 'forum', 'settings'].includes(tab);
+    }
+    if (role === 'examiner') {
+      return ['dashboard', 'grading', 'proctor', 'schedule', 'builder', 'questions', 'results', 'settings', 'materials', 'forum'].includes(tab);
+    }
+    if (role === 'admin') {
+      return ['dashboard', 'proctor', 'grading', 'builder', 'questions', 'schedule', 'results', 'settings', 'materials', 'forum'].includes(tab);
+    }
+    return true;
+  };
+
+  const handleNavigateTab = (tab: string) => {
+    if (currentUser && !isTabAllowedForRole(tab, currentUser.role)) {
+      console.warn(`[RBAC Guard] Role ${currentUser.role} is not permitted to access ${tab}. Rerouting to dashboard.`);
+      setCurrentTab('dashboard');
+      return;
+    }
+    setActiveSessionId(null);
+    setCurrentTab(tab);
+  };
+
+  // Enforce RBAC guard on active tab whenever currentUser or currentTab changes
+  useEffect(() => {
+    if (currentUser && !isTabAllowedForRole(currentTab, currentUser.role)) {
+      setCurrentTab('dashboard');
+    }
+  }, [currentUser, currentTab]);
+
   const handleSwitchRole = async (role: UserRole) => {
     try {
       const res = await api.autoLoginAsRole(role);
@@ -102,13 +135,7 @@ export const App: React.FC = () => {
       console.warn('Role switch login error', e);
     }
 
-    if (role === 'student') {
-      setCurrentTab('dashboard');
-    } else if (role === 'examiner') {
-      setCurrentTab('grading');
-    } else {
-      setCurrentTab('proctor');
-    }
+    setCurrentTab('dashboard');
   };
 
   const handleLogout = () => {
@@ -151,13 +178,7 @@ export const App: React.FC = () => {
         isConnected={isConnected}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          if (user.role === 'student') {
-            setCurrentTab('dashboard');
-          } else if (user.role === 'examiner') {
-            setCurrentTab('grading');
-          } else {
-            setCurrentTab('proctor');
-          }
+          setCurrentTab('dashboard');
         }}
       />
     );
@@ -167,22 +188,26 @@ export const App: React.FC = () => {
     <Suspense fallback={<ViewLoadingFallback />}>
       <DashboardLayout
         currentTab={currentTab}
-        setCurrentTab={(tab) => {
-          setActiveSessionId(null);
-          setCurrentTab(tab);
-        }}
+        setCurrentTab={handleNavigateTab}
         currentUser={currentUser}
         onSwitchRole={handleSwitchRole}
         isConnected={isConnected}
         onLogout={handleLogout}
       >
-      {/* 1. Main Student Dashboard (Exact 1:1 Reference Match) */}
+      {/* 1. Main Role-Specific Dashboard (Student vs Examiner/Admin) */}
       {currentTab === 'dashboard' && (
-        <StudentDashboardView
-          currentUser={currentUser}
-          onNavigateTab={setCurrentTab}
-          onStartExam={handleStartExam}
-        />
+        currentUser.role === 'student' ? (
+          <StudentDashboardView
+            currentUser={currentUser}
+            onNavigateTab={handleNavigateTab}
+            onStartExam={handleStartExam}
+          />
+        ) : (
+          <ExaminerDashboardView
+            currentUser={currentUser}
+            onNavigateTab={handleNavigateTab}
+          />
+        )
       )}
 
       {/* 2. Dedicated Academic & Examination Schedule View */}
@@ -192,9 +217,9 @@ export const App: React.FC = () => {
           onStartExam={handleStartExam}
           onViewResults={(sessId) => {
             setResultSessionId(sessId);
-            setCurrentTab('results');
+            handleNavigateTab('results');
           }}
-          onNavigateTab={setCurrentTab}
+          onNavigateTab={handleNavigateTab}
         />
       )}
 
@@ -230,12 +255,16 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Candidate Scorecards & Analytics */}
+      {/* 3. Candidate Scorecards (Student) vs Cohort Analytics (Examiner/Admin) */}
       {currentTab === 'results' && (
-        <StudentResultsView
-          sessionId={resultSessionId || undefined}
-          onBackToExams={() => setCurrentTab('dashboard')}
-        />
+        currentUser.role === 'student' ? (
+          <StudentResultsView
+            sessionId={resultSessionId || undefined}
+            onBackToExams={() => handleNavigateTab('dashboard')}
+          />
+        ) : (
+          <CohortAnalyticsView />
+        )
       )}
 
       {/* 4. Examiner & Admin Portals */}
