@@ -1069,7 +1069,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   </button>
 
                   <button
-                    onClick={() => { onSwitchRole('examiner'); setShowRoleDropdown(false); setCurrentTab('grading'); }}
+                    onClick={() => { onSwitchRole('examiner'); setShowRoleDropdown(false); setCurrentTab('dashboard'); }}
                     style={{
                       width: '100%',
                       padding: '8px 10px',
@@ -1090,7 +1090,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   </button>
 
                   <button
-                    onClick={() => { onSwitchRole('admin'); setShowRoleDropdown(false); setCurrentTab('proctor'); }}
+                    onClick={() => { onSwitchRole('admin'); setShowRoleDropdown(false); setCurrentTab('dashboard'); }}
                     style={{
                       width: '100%',
                       padding: '8px 10px',
