@@ -514,6 +514,147 @@ async def test_forum_search_pagination_and_replies(client: AsyncClient):
     assert not any(p["id"] == post_id for p in res_after_del.json()["items"])
 
 
+@pytest.mark.asyncio
+async def test_question_bank_mcq_search_and_filters(client: AsyncClient):
+    # 1. Login as examiner
+    await client.post("/api/v1/auth/register", json={
+        "email": "mcq_examiner@examora.io",
+        "password": "password123",
+        "full_name": "Examiner MCQ Tester",
+        "role": "examiner"
+    })
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "mcq_examiner@examora.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Create sample questions (MCQ and subjective)
+    q1_resp = await client.post("/api/v1/questions/", json={
+        "subject": "Computer Science",
+        "topic": "Operating Systems",
+        "question_type": "MCQ",
+        "difficulty": "medium",
+        "content": "Which CPU scheduling algorithm minimizes average wait time for known burst durations?",
+        "model_answer": "Shortest Job First (SJF)",
+        "max_marks": 2.0,
+        "negative_marks": 0.5,
+        "options": [
+            {"option_text": "Shortest Job First (SJF)", "is_correct": True, "sort_order": 0},
+            {"option_text": "First Come First Served (FCFS)", "is_correct": False, "sort_order": 1},
+            {"option_text": "Round Robin (RR)", "is_correct": False, "sort_order": 2}
+        ]
+    }, headers=headers)
+    assert q1_resp.status_code == 201
+
+    q2_resp = await client.post("/api/v1/questions/", json={
+        "subject": "Data Structures",
+        "topic": "Trees & Heaps",
+        "question_type": "MCQ",
+        "difficulty": "hard",
+        "content": "What is the worst-case time complexity of searching an element in a balanced AVL tree?",
+        "model_answer": "O(log N)",
+        "max_marks": 3.0,
+        "negative_marks": 0.5,
+        "options": [
+            {"option_text": "O(log N)", "is_correct": True, "sort_order": 0},
+            {"option_text": "O(N)", "is_correct": False, "sort_order": 1},
+            {"option_text": "O(1)", "is_correct": False, "sort_order": 2}
+        ]
+    }, headers=headers)
+    assert q2_resp.status_code == 201
+
+    # 3. Test search by keyword in content (case-insensitive)
+    search_resp = await client.get("/api/v1/questions/?q=scheduling", headers=headers)
+    assert search_resp.status_code == 200
+    questions = search_resp.json()
+    assert len(questions) >= 1
+    assert any("scheduling" in q["content"].lower() for q in questions)
+
+    # 4. Test uppercase / lowercase search
+    upper_resp = await client.get("/api/v1/questions/?q=AVL", headers=headers)
+    assert upper_resp.status_code == 200
+    assert any("avl" in q["content"].lower() for q in upper_resp.json())
+
+    # 5. Test search by topic
+    topic_resp = await client.get("/api/v1/questions/?q=Operating Systems", headers=headers)
+    assert topic_resp.status_code == 200
+    assert any("Operating Systems" in (q["topic"] or "") for q in topic_resp.json())
+
+    # 6. Test subject filter
+    subj_resp = await client.get("/api/v1/questions/?subject=Data Structures", headers=headers)
+    assert subj_resp.status_code == 200
+    for q in subj_resp.json():
+        assert "data structures" in q["subject"].lower()
+
+    # 7. Test question_type filter
+    mcq_resp = await client.get("/api/v1/questions/?question_type=MCQ", headers=headers)
+    assert mcq_resp.status_code == 200
+    for q in mcq_resp.json():
+        assert q["question_type"] == "MCQ"
+
+    # 8. Test combined search + subject filter
+    combined_resp = await client.get("/api/v1/questions/?q=worst-case&subject=Data Structures", headers=headers)
+    assert combined_resp.status_code == 200
+    assert len(combined_resp.json()) >= 1
+
+    # 9. Test no results for non-existent keyword
+    empty_resp = await client.get("/api/v1/questions/?q=nonexistentxyzkeyword99", headers=headers)
+    assert empty_resp.status_code == 200
+    assert len(empty_resp.json()) == 0
+
+
+@pytest.mark.asyncio
+async def test_notifications_lifecycle_and_read_state(client: AsyncClient):
+    # 1. Register and login student
+    await client.post("/api/v1/auth/register", json={
+        "email": "notif_student@examora.io",
+        "password": "password123",
+        "full_name": "Notif Candidate",
+        "role": "student"
+    })
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "notif_student@examora.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. List notifications (should auto-seed context notifications for student)
+    list_resp = await client.get("/api/v1/notifications/", headers=headers)
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert "items" in data
+    assert "unread_count" in data
+    assert len(data["items"]) > 0
+    assert data["unread_count"] > 0
+
+    first_notif = data["items"][0]
+    notif_id = first_notif["id"]
+    assert first_notif["is_read"] is False
+    initial_unread = data["unread_count"]
+
+    # 3. Mark single notification as read
+    read_resp = await client.patch(f"/api/v1/notifications/{notif_id}/read", headers=headers)
+    assert read_resp.status_code == 200
+    assert read_resp.json()["is_read"] is True
+
+    # 4. Verify unread count decremented
+    list_after_one = await client.get("/api/v1/notifications/", headers=headers)
+    assert list_after_one.json()["unread_count"] == initial_unread - 1
+
+    # 5. Mark all as read
+    mark_all_resp = await client.post("/api/v1/notifications/mark-all-read", headers=headers)
+    assert mark_all_resp.status_code == 200
+
+    # 6. Verify 0 unread remain
+    final_list = await client.get("/api/v1/notifications/", headers=headers)
+    assert final_list.json()["unread_count"] == 0
+    for item in final_list.json()["items"]:
+        assert item["is_read"] is True
+
+
 
 
 

@@ -249,3 +249,15 @@ class ForumReply(Base):
     post = relationship("ForumPost", back_populates="replies")
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    target_role = Column(String(50), nullable=True)  # student, examiner, admin, or None for all
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    category = Column(String(50), default="exam")  # exam, grading, system, material, forum
+    target_route = Column(String(100), nullable=True)  # assessments, schedule, results, materials, forum, grading, questions
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)

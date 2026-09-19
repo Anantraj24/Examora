@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, questions, exams, exam_sessions, answers, proctoring_ws, evaluations, results, materials, forum
+from app.api.v1.endpoints import auth, questions, exams, exam_sessions, answers, proctoring_ws, evaluations, results, materials, forum, notifications
 
 api_router = APIRouter()
 
@@ -13,5 +13,7 @@ api_router.include_router(evaluations.router, prefix="/evaluations", tags=["Exam
 api_router.include_router(results.router, prefix="/results", tags=["Results & Candidate Analytics"])
 api_router.include_router(materials.router, prefix="/materials", tags=["Course Materials"])
 api_router.include_router(forum.router, prefix="/forum", tags=["Discussion Forum"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications & Alerts"])
+
 
 

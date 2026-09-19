@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutGrid, BookOpen, Calendar, FolderMinus, MessageSquare, 
   Award, Settings, LogOut, Search, ChevronDown, Mail, Bell, 
   Sun, Moon, Sparkles, Shield, UserCheck, Bot, Layers, PlusCircle, BarChart2,
-  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Menu, CheckCircle2
+  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Menu, CheckCircle2,
+  X, Loader2, Check, ExternalLink, HelpCircle, FileText
 } from 'lucide-react';
-import { User, UserRole } from '../types';
+import { User, UserRole, Exam, Question, CourseMaterial, ForumPost, AppNotification } from '../types';
 import { useTranslation } from '../i18n/LanguageContext';
+import { api } from '../services/api';
 
 interface DashboardLayoutProps {
   currentTab: string;
@@ -33,7 +35,189 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Live Search Overlay State
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchResults, setSearchResults] = useState<{
+    exams: Exam[];
+    questions: Question[];
+    materials: CourseMaterial[];
+    forum: ForumPost[];
+  }>({ exams: [], questions: [], materials: [], forum: [] });
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Inbox & Notification Dropdown State
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [showInboxDropdown, setShowInboxDropdown] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [messages, setMessages] = useState([
+    {
+      id: 'msg-01',
+      sender: 'AI Proctoring Lead',
+      subject: 'Proctoring Sensor Calibration',
+      snippet: 'Webcam telemetry stream and facial keypoint trackers verified for your session.',
+      time: '15m ago',
+      is_read: false,
+      target_route: 'proctor'
+    },
+    {
+      id: 'msg-02',
+      sender: 'Examiner Sarah Connor',
+      subject: 'Rubric Criteria Updated',
+      snippet: 'B-Tree Order 3 insertion rubric verified with node split and child pointer checks.',
+      time: '1h ago',
+      is_read: false,
+      target_route: 'questions'
+    },
+    {
+      id: 'msg-03',
+      sender: 'Academic Admin',
+      subject: 'Exam Blueprint Published',
+      snippet: 'Distributed Systems & Cloud Architecture Final has been published to schedule.',
+      time: '4h ago',
+      is_read: true,
+      target_route: 'assessments'
+    }
+  ]);
+  const unreadMsgCount = messages.filter(m => !m.is_read).length;
+
   const { currentLanguage, currentOption, setLanguage, supportedLanguages, t } = useTranslation();
+
+  // Load Notifications
+  const loadNotifications = async () => {
+    try {
+      const res = await api.getNotifications();
+      if (res && res.items) {
+        setNotifications(res.items);
+        setUnreadNotifCount(res.unread_count);
+      }
+    } catch (e) {
+      console.warn('Notifications fetch fallback', e);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, [currentUser]);
+
+  // Live Multi-Domain Search Effect
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults({ exams: [], questions: [], materials: [], forum: [] });
+      setIsSearching(false);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    setShowSearchDropdown(true);
+    setIsSearching(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const q = searchQuery.trim();
+        const [examsRes, questionsRes, materialsRes, forumRes] = await Promise.allSettled([
+          api.getExams(),
+          api.getQuestions({ q }),
+          api.getMaterials({ q }),
+          api.getForumPosts({ q, page_size: 4 })
+        ]);
+
+        const exams = examsRes.status === 'fulfilled'
+          ? (examsRes.value || []).filter(e => 
+              e.title.toLowerCase().includes(q.toLowerCase()) || 
+              e.subject.toLowerCase().includes(q.toLowerCase())
+            ).slice(0, 3)
+          : [];
+
+        const questions = questionsRes.status === 'fulfilled'
+          ? (questionsRes.value || []).slice(0, 3)
+          : [];
+
+        const materials = materialsRes.status === 'fulfilled'
+          ? (materialsRes.value || []).slice(0, 3)
+          : [];
+
+        const forum = forumRes.status === 'fulfilled'
+          ? (forumRes.value?.items || []).slice(0, 3)
+          : [];
+
+        setSearchResults({ exams, questions, materials, forum });
+      } catch (err) {
+        console.warn('Live search error', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Handle clicking outside search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Notification Click with Read Tracking & Dynamic Navigation
+  const handleNotificationClick = async (notif: AppNotification) => {
+    try {
+      if (!notif.is_read) {
+        await api.markNotificationRead(notif.id);
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+        setUnreadNotifCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (e) {
+      console.warn('Notification mark read error', e);
+      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+      setUnreadNotifCount(prev => Math.max(0, prev - 1));
+    }
+
+    setShowNotificationDropdown(false);
+
+    if (notif.target_route) {
+      const allowedTabs = getNavItems().map(item => item.id);
+      if (allowedTabs.includes(notif.target_route)) {
+        setCurrentTab(notif.target_route);
+      } else {
+        // Fallback for role cross-compatibility
+        if (currentUser.role === 'examiner' && notif.target_route === 'assessments') {
+          setCurrentTab('builder');
+        } else if (currentUser.role === 'student' && notif.target_route === 'grading') {
+          setCurrentTab('results');
+        } else if (currentUser.role === 'student' && notif.target_route === 'questions') {
+          setCurrentTab('materials');
+        }
+      }
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await api.markAllNotificationsRead();
+    } catch (e) {
+      console.warn('Mark all read error', e);
+    }
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadNotifCount(0);
+  };
+
+  const handleMessageClick = (msgId: string, route?: string) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, is_read: true } : m));
+    setShowInboxDropdown(false);
+    if (route) {
+      const allowedTabs = getNavItems().map(item => item.id);
+      if (allowedTabs.includes(route)) {
+        setCurrentTab(route);
+      }
+    }
+  };
+
 
   // Role-Aware Navigation Tabs for seamless sidebar switching
   const getNavItems = () => {
@@ -253,24 +437,240 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </span>
             </div>
 
-            {/* Search Input Box */}
-            <div className="dash-search-box">
-              <input 
-                type="text" 
-                placeholder={t('topbar.search', 'Search examinations, lessons, question banks...')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  padding: 0,
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  color: isDarkMode ? '#FFFFFF' : '#1E293B',
-                  boxShadow: 'none'
-                }}
-              />
-              <Search size={15} color="#94A3B8" />
+            {/* Search Input Box with Realtime Results Overlay */}
+            <div ref={searchContainerRef} style={{ position: 'relative' }}>
+              <div className="dash-search-box" style={{ position: 'relative' }}>
+                <input 
+                  type="text" 
+                  placeholder={t('topbar.search', 'Search examinations, lessons, question banks...')}
+                  value={searchQuery}
+                  onFocus={() => { if (searchQuery.trim()) setShowSearchDropdown(true); }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '0 24px 0 0',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    color: isDarkMode ? '#FFFFFF' : '#1E293B',
+                    boxShadow: 'none'
+                  }}
+                />
+                {isSearching ? (
+                  <Loader2 size={14} className="spin" color="#6366F1" />
+                ) : searchQuery ? (
+                  <button 
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setShowSearchDropdown(false); }}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                  >
+                    <X size={14} color="#94A3B8" />
+                  </button>
+                ) : (
+                  <Search size={15} color="#94A3B8" />
+                )}
+              </div>
+
+              {/* Realtime Search Results Popover */}
+              {showSearchDropdown && searchQuery.trim() && (
+                <div 
+                  className="dash-card"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    width: '420px',
+                    maxHeight: '480px',
+                    overflowY: 'auto',
+                    padding: '12px',
+                    borderRadius: '14px',
+                    boxShadow: '0 16px 36px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    zIndex: 1100,
+                    background: isDarkMode ? '#1E293B' : '#FFFFFF',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      Universal Search Results
+                    </span>
+                    <button 
+                      onClick={() => setShowSearchDropdown(false)}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* Questions & MCQs Matches */}
+                  {searchResults.questions.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#818CF8', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <PlusCircle size={13} />
+                        Question Bank & MCQs ({searchResults.questions.length})
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {searchResults.questions.map(q => (
+                          <div 
+                            key={q.id}
+                            onClick={() => {
+                              setCurrentTab('questions');
+                              setShowSearchDropdown(false);
+                              setSearchQuery('');
+                            }}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: 'var(--bg-surface)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+                              {q.content}
+                            </div>
+                            <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>
+                              {q.question_type.toUpperCase()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Examinations Matches */}
+                  {searchResults.exams.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34D399', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Award size={13} />
+                        Examinations ({searchResults.exams.length})
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {searchResults.exams.map(ex => (
+                          <div 
+                            key={ex.id}
+                            onClick={() => {
+                              setCurrentTab(currentUser.role === 'examiner' ? 'builder' : 'assessments');
+                              setShowSearchDropdown(false);
+                              setSearchQuery('');
+                            }}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: 'var(--bg-surface)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem', fontWeight: 600 }}>
+                              {ex.title}
+                            </div>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                              {ex.duration_minutes}m
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Course Materials Matches */}
+                  {searchResults.materials.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F59E0B', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <FolderMinus size={13} />
+                        Course Materials ({searchResults.materials.length})
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {searchResults.materials.map(mat => (
+                          <div 
+                            key={mat.id}
+                            onClick={() => {
+                              setCurrentTab('materials');
+                              setShowSearchDropdown(false);
+                              setSearchQuery('');
+                            }}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: 'var(--bg-surface)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+                              {mat.title}
+                            </div>
+                            <span className="badge badge-amber" style={{ fontSize: '0.65rem' }}>
+                              {mat.category}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Forum Discussions Matches */}
+                  {searchResults.forum.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#06B6D4', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <MessageSquare size={13} />
+                        Forum Discussions ({searchResults.forum.length})
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {searchResults.forum.map(f => (
+                          <div 
+                            key={f.id}
+                            onClick={() => {
+                              setCurrentTab('forum');
+                              setShowSearchDropdown(false);
+                              setSearchQuery('');
+                            }}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: 'var(--bg-surface)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+                              {f.title}
+                            </div>
+                            <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>
+                              {f.tag}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!isSearching && 
+                   searchResults.questions.length === 0 && 
+                   searchResults.exams.length === 0 && 
+                   searchResults.materials.length === 0 && 
+                   searchResults.forum.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '1.5rem 1rem', color: 'var(--text-muted)' }}>
+                      <HelpCircle size={24} style={{ margin: '0 auto 6px auto', opacity: 0.6 }} />
+                      <div style={{ fontSize: '0.85rem' }}>No results found for "{searchQuery}"</div>
+                      <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>Try searching another keyword or question topic.</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -370,31 +770,214 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
 
             {/* Message / Mail icon */}
-            <div className="dash-icon-btn" title="Messages">
-              <Mail size={18} />
-              <div style={{
-                position: 'absolute',
-                top: '6px',
-                right: '6px',
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                background: '#3B82F6'
-              }} />
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="dash-icon-btn" 
+                title="Messages & Communication Inbox"
+                onClick={() => {
+                  setShowInboxDropdown(!showInboxDropdown);
+                  setShowNotificationDropdown(false);
+                  setShowLanguageDropdown(false);
+                  setShowRoleDropdown(false);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <Mail size={18} />
+                {unreadMsgCount > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    minWidth: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#3B82F6'
+                  }} />
+                )}
+              </div>
+
+              {showInboxDropdown && (
+                <div 
+                  className="dash-card"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '320px',
+                    padding: '12px',
+                    borderRadius: '14px',
+                    boxShadow: '0 16px 36px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    zIndex: 1000,
+                    background: isDarkMode ? '#1E293B' : '#FFFFFF',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Mail size={14} color="#3B82F6" />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Inbox & Messages</span>
+                    </div>
+                    {unreadMsgCount > 0 && (
+                      <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>
+                        {unreadMsgCount} new
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
+                    {messages.map(msg => (
+                      <div
+                        key={msg.id}
+                        onClick={() => handleMessageClick(msg.id, msg.target_route)}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          background: msg.is_read ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
+                          border: `1px solid ${msg.is_read ? 'transparent' : 'rgba(59, 130, 246, 0.2)'}`,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: msg.is_read ? 'var(--text-secondary)' : '#3B82F6' }}>
+                            {msg.sender}
+                          </span>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{msg.time}</span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{msg.subject}</div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {msg.snippet}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notification Bell */}
-            <div className="dash-icon-btn" title="Notifications">
-              <Bell size={18} />
-              <div style={{
-                position: 'absolute',
-                top: '6px',
-                right: '6px',
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                background: '#EF4444'
-              }} />
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="dash-icon-btn" 
+                title="Notifications"
+                onClick={() => {
+                  setShowNotificationDropdown(!showNotificationDropdown);
+                  setShowInboxDropdown(false);
+                  setShowLanguageDropdown(false);
+                  setShowRoleDropdown(false);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <Bell size={18} />
+                {unreadNotifCount > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    minWidth: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#EF4444'
+                  }} />
+                )}
+              </div>
+
+              {showNotificationDropdown && (
+                <div 
+                  className="dash-card"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '340px',
+                    padding: '12px',
+                    borderRadius: '14px',
+                    boxShadow: '0 16px 36px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    zIndex: 1000,
+                    background: isDarkMode ? '#1E293B' : '#FFFFFF',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Bell size={14} color="#EF4444" />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Notifications</span>
+                      {unreadNotifCount > 0 && (
+                        <span className="badge badge-rose" style={{ fontSize: '0.65rem' }}>
+                          {unreadNotifCount}
+                        </span>
+                      )}
+                    </div>
+                    {unreadNotifCount > 0 && (
+                      <button
+                        onClick={handleMarkAllNotificationsRead}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#6366F1',
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      notifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => handleNotificationClick(n)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            background: n.is_read ? 'transparent' : 'rgba(99, 102, 241, 0.08)',
+                            border: `1px solid ${n.is_read ? 'transparent' : 'rgba(99, 102, 241, 0.2)'}`,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: n.is_read ? 'var(--text-secondary)' : '#6366F1' }}>
+                              {n.title}
+                            </span>
+                            {!n.is_read && (
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6366F1' }} />
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {n.message}
+                          </div>
+                          {n.target_route && (
+                            <div style={{ fontSize: '0.68rem', color: '#818CF8', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                              <span>Navigate to {n.target_route}</span>
+                              <ExternalLink size={10} />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* User Profile Chip & Role Selector */}

@@ -1,8 +1,10 @@
 import {
   User, Exam, Question, StudentExamPaper,
   GradingQueueItem, ExamResultData, UserRole, CourseMaterial,
-  ForumPost, ForumReply, ForumPaginatedResponse
+  ForumPost, ForumReply, ForumPaginatedResponse,
+  AppNotification, NotificationListResponse
 } from '../types';
+
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000/api/v1';
 
@@ -353,8 +355,19 @@ class ApiService {
   }
 
   // ----------------- Questions API -----------------
-  async getQuestions(subject?: string): Promise<Question[]> {
-    const url = subject ? `${API_BASE_URL}/questions/?subject=${encodeURIComponent(subject)}` : `${API_BASE_URL}/questions/`;
+  async getQuestions(params?: string | { q?: string; search?: string; subject?: string; difficulty?: string; question_type?: string }): Promise<Question[]> {
+    const query = new URLSearchParams();
+    if (typeof params === 'string') {
+      if (params && params !== 'All' && params !== 'All Subjects') query.append('subject', params);
+    } else if (params) {
+      const searchTerm = params.q || params.search;
+      if (searchTerm && searchTerm.trim()) query.append('q', searchTerm.trim());
+      if (params.subject && params.subject !== 'All' && params.subject !== 'All Subjects') query.append('subject', params.subject);
+      if (params.difficulty && params.difficulty !== 'All') query.append('difficulty', params.difficulty);
+      if (params.question_type && params.question_type !== 'All') query.append('question_type', params.question_type);
+    }
+    const qs = query.toString();
+    const url = `${API_BASE_URL}/questions/${qs ? '?' + qs : ''}`;
     const resp = await fetch(url, { headers: this.getHeaders() });
     if (!resp.ok) throw new Error('Failed to fetch questions');
     return resp.json();
@@ -498,6 +511,34 @@ class ApiService {
     if (!resp.ok) throw new Error('Failed to load exam results');
     return resp.json();
   }
+
+  // ----------------- Notifications API -----------------
+  async getNotifications(): Promise<NotificationListResponse> {
+    const resp = await fetch(`${API_BASE_URL}/notifications/`, {
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) throw new Error('Failed to fetch notifications');
+    return resp.json();
+  }
+
+  async markNotificationRead(notificationId: string): Promise<AppNotification> {
+    const resp = await fetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) throw new Error('Failed to mark notification as read');
+    return resp.json();
+  }
+
+  async markAllNotificationsRead(): Promise<{ message: string; updated: number }> {
+    const resp = await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) throw new Error('Failed to mark all notifications as read');
+    return resp.json();
+  }
 }
 
 export const api = new ApiService();
+

@@ -333,4 +333,28 @@ class ForumPaginatedOut(BaseModel):
     page_size: int
     total_pages: int
 
+# ----------------- Notification Schemas -----------------
+class NotificationBase(BaseModel):
+    title: str
+    message: str
+    category: str = "exam"
+    target_route: Optional[str] = None
+    target_role: Optional[str] = None
+
+class NotificationCreate(NotificationBase):
+    user_id: Optional[str] = None
+
+class NotificationOut(NotificationBase):
+    id: str
+    user_id: Optional[str] = None
+    is_read: bool = False
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class NotificationListOut(BaseModel):
+    items: List[NotificationOut]
+    unread_count: int
+
+
 

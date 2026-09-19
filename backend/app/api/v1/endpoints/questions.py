@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import or_
 from app.core.database import get_db
 from app.api.v1.endpoints.auth import get_current_user, require_role
 from app.models.models import User, UserRole, QuestionBank, QuestionOption, QuestionType
@@ -59,20 +60,42 @@ async def create_question(
 
 @router.get("/", response_model=List[QuestionOut])
 async def list_questions(
-    subject: Optional[str] = Query(None),
-    difficulty: Optional[str] = Query(None),
-    question_type: Optional[str] = Query(None),
+    q: Optional[str] = Query(None, description="Search keyword in question content, topic, subject, or model answer"),
+    search: Optional[str] = Query(None, description="Alternative alias for search query"),
+    subject: Optional[str] = Query(None, description="Filter by subject"),
+    difficulty: Optional[str] = Query(None, description="Filter by difficulty"),
+    question_type: Optional[str] = Query(None, description="Filter by question type (e.g. MCQ)"),
     current_user: User = Depends(require_role([UserRole.EXAMINER, UserRole.ADMIN])),
     db: AsyncSession = Depends(get_db)
 ):
     query = select(QuestionBank).options(selectinload(QuestionBank.options))
-    if subject:
-        query = query.where(QuestionBank.subject == subject)
-    if difficulty:
-        query = query.where(QuestionBank.difficulty == difficulty)
-    if question_type:
-        query = query.where(QuestionBank.question_type == question_type)
+    
+    # Search keyword filtering (case-insensitive)
+    search_term = q or search
+    if search_term and search_term.strip():
+        term = f"%{search_term.strip()}%"
+        query = query.where(
+            or_(
+                QuestionBank.content.ilike(term),
+                QuestionBank.topic.ilike(term),
+                QuestionBank.subject.ilike(term),
+                QuestionBank.model_answer.ilike(term)
+            )
+        )
+
+    # Subject filtering (case-insensitive)
+    if subject and subject.strip() and subject.strip().lower() not in ('all', 'all subjects'):
+        query = query.where(QuestionBank.subject.ilike(f"%{subject.strip()}%"))
+
+    # Difficulty filtering
+    if difficulty and difficulty.strip() and difficulty.strip().lower() != 'all':
+        query = query.where(QuestionBank.difficulty == difficulty.strip().lower())
+
+    # Question Type filtering (e.g. MCQ)
+    if question_type and question_type.strip() and question_type.strip().lower() != 'all':
+        query = query.where(QuestionBank.question_type == question_type.strip())
         
+    query = query.order_by(QuestionBank.created_at.desc())
     result = await db.execute(query)
     return result.scalars().all()
 

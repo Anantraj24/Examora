@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, CheckCircle, HelpCircle, FileText, 
-  Layers, Sparkles, Filter, Check
+  Layers, Sparkles, Filter, Check, Search, X, Loader2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Question, QuestionType, DifficultyLevel } from '../types';
 
 export const QuestionBankManager: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [difficultyFilter, setDifficultyFilter] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // New Question Form State
@@ -31,20 +35,36 @@ export const QuestionBankManager: React.FC = () => {
     { criterion: 'Covers edge cases & trade-offs', points: 1.0 }
   ]);
 
-  const loadQuestions = async () => {
+  const loadQuestions = async (query = searchQuery, subject = subjectFilter, type = typeFilter, diff = difficultyFilter) => {
+    setIsLoading(true);
     try {
-      const data = await api.getQuestions(subjectFilter || undefined);
-      if (data && data.length > 0) {
-        setQuestions(data);
-      }
+      const data = await api.getQuestions({
+        q: query || undefined,
+        subject: subject || undefined,
+        question_type: type || undefined,
+        difficulty: diff || undefined,
+      });
+      setQuestions(data || []);
     } catch (e) {
       console.warn('Questions fetch fallback', e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadQuestions();
-  }, [subjectFilter]);
+    const handler = setTimeout(() => {
+      loadQuestions(searchQuery, subjectFilter, typeFilter, difficultyFilter);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchQuery, subjectFilter, typeFilter, difficultyFilter]);
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSubjectFilter('');
+    setTypeFilter('');
+    setDifficultyFilter('');
+  };
 
   const handleCreateQuestion = async () => {
     if (!qContent.trim()) {
@@ -95,24 +115,169 @@ export const QuestionBankManager: React.FC = () => {
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <Filter size={16} color="var(--text-muted)" />
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Filter by Subject:</span>
-        <select
-          value={subjectFilter}
-          onChange={(e) => setSubjectFilter(e.target.value)}
-          style={{ width: '220px', padding: '6px 12px' }}
-        >
-          <option value="">All Subjects</option>
-          <option value="Computer Science">Computer Science</option>
-          <option value="Data Structures">Data Structures</option>
-          <option value="AI & ML">AI & Machine Learning</option>
-        </select>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-          {questions.length} Questions in Repository
-        </span>
+      {/* Filter and Search Bar */}
+      <div className="glass-panel" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Search Box */}
+          <div style={{
+            position: 'relative',
+            flex: '1 1 320px',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search MCQs & questions by keyword, topic, concept..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                paddingLeft: '38px',
+                paddingRight: searchQuery ? '36px' : '14px',
+                height: '40px',
+                fontSize: '0.875rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-surface)'
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Subject Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={15} color="var(--text-muted)" />
+            <select
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              style={{ height: '40px', minWidth: '180px', padding: '0 12px', borderRadius: '8px' }}
+            >
+              <option value="">All Subjects</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Data Structures">Data Structures</option>
+              <option value="AI & ML">AI & Machine Learning</option>
+            </select>
+          </div>
+
+          {/* Question Type Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              style={{ height: '40px', minWidth: '160px', padding: '0 12px', borderRadius: '8px' }}
+            >
+              <option value="">All Question Types</option>
+              <option value="MCQ">Single Choice MCQ</option>
+              <option value="multi_select">Multi-Select</option>
+              <option value="short_answer">Short Written</option>
+              <option value="long_answer">Long Written</option>
+              <option value="image_upload">Diagram Upload</option>
+            </select>
+          </div>
+
+          {/* Difficulty Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <select
+              value={difficultyFilter}
+              onChange={(e) => setDifficultyFilter(e.target.value)}
+              style={{ height: '40px', minWidth: '130px', padding: '0 12px', borderRadius: '8px' }}
+            >
+              <option value="">All Difficulties</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+
+          {/* Counter and Active Indicators */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isLoading && (
+              <Loader2 size={16} className="spin" color="#6366F1" />
+            )}
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {questions.length} Questions
+            </span>
+            {(searchQuery || subjectFilter || typeFilter || difficultyFilter) && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#EF4444',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Empty State */}
+      {!isLoading && questions.length === 0 && (
+        <div className="glass-panel" style={{
+          padding: '3rem 2rem',
+          textAlign: 'center',
+          borderRadius: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px'
+        }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'rgba(99, 102, 241, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <HelpCircle size={28} color="#818CF8" />
+          </div>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>No matching questions found</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: '420px', lineHeight: 1.5 }}>
+            {searchQuery || subjectFilter || typeFilter || difficultyFilter
+              ? `No questions match your current query "${searchQuery || 'filters'}". Try broadening your search or resetting filters.`
+              : 'The question repository is currently empty. Click "Create New Question" to add your first item.'}
+          </p>
+          {(searchQuery || subjectFilter || typeFilter || difficultyFilter) && (
+            <button
+              onClick={handleResetFilters}
+              className="btn btn-secondary"
+              style={{ marginTop: '6px', fontSize: '0.85rem' }}
+            >
+              Clear Search & Filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Questions Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.25rem' }}>

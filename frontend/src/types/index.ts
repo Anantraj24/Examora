@@ -258,3 +258,20 @@ export interface ExamResultData {
   };
   question_breakdown: QuestionResultBreakdown[];
 }
+
+export interface AppNotification {
+  id: string;
+  user_id?: string;
+  target_role?: string;
+  title: string;
+  message: string;
+  category: 'exam' | 'schedule' | 'grading' | 'system' | 'material' | 'forum';
+  target_route?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: AppNotification[];
+  unread_count: number;
+}
