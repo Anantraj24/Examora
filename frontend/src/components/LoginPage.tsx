@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { 
   Shield, Lock, Mail, User as UserIcon, ArrowRight, 
   CheckCircle2, AlertCircle, Eye, EyeOff, Sparkles, 
@@ -6,7 +6,9 @@ import {
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { api } from '../services/api';
-import { CyberAuthGame } from './CyberAuthGame';
+
+// Lazy-load the cyber security game & canvas-confetti bundle so login renders instantly
+const CyberAuthGame = lazy(() => import('./CyberAuthGame').then(m => ({ default: m.CyberAuthGame })));
 
 interface LoginPageProps {
   onLoginSuccess: (user: User) => void;
@@ -24,9 +26,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Security Game Verification Gate Modal State
+  // Security Game Verification Gate Modal State (default false for frictionless, instant login)
   const [showVerificationGate, setShowVerificationGate] = useState<boolean>(false);
-  const [requireSecurityGame, setRequireSecurityGame] = useState<boolean>(true);
+  const [requireSecurityGame, setRequireSecurityGame] = useState<boolean>(false);
 
   // Quick 1-Click Demo Profiles
   const demoProfiles = [
@@ -805,12 +807,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
             {/* TAB 3: STANDALONE ARCADE GAME */}
             {activeTab === 'game' && (
               <div>
-                <CyberAuthGame
-                  isVerificationGate={false}
-                  onVerified={() => {
-                    setSuccessMessage('High Score Synced! You have proven high cognitive readiness.');
-                  }}
-                />
+                <Suspense fallback={
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '10px', color: '#94A3B8' }}>
+                    <Loader2 size={24} className="animate-spin" color="#06B6D4" />
+                    <span style={{ fontSize: '0.82rem' }}>Initializing Cyber Engine...</span>
+                  </div>
+                }>
+                  <CyberAuthGame
+                    isVerificationGate={false}
+                    onVerified={() => {
+                      setSuccessMessage('High Score Synced! You have proven high cognitive readiness.');
+                    }}
+                  />
+                </Suspense>
               </div>
             )}
 
@@ -913,17 +922,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, isConnecte
           padding: '1.5rem'
         }}>
           <div style={{ width: '100%', maxWidth: '420px' }}>
-            <CyberAuthGame
-              isVerificationGate={true}
-              onVerified={() => {
-                setShowVerificationGate(false);
-                executeLogin(email, password);
-              }}
-              onBypass={() => {
-                setShowVerificationGate(false);
-                executeLogin(email, password);
-              }}
-            />
+            <Suspense fallback={
+              <div style={{ padding: '2.5rem', background: 'rgba(15, 23, 42, 0.9)', borderRadius: '20px', border: '1px solid rgba(255, 255, 255, 0.1)', textAlign: 'center', color: '#94A3B8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <Loader2 size={28} className="animate-spin" color="#6366F1" />
+                <span style={{ fontSize: '0.85rem' }}>Loading Neural Verification Gate...</span>
+              </div>
+            }>
+              <CyberAuthGame
+                isVerificationGate={true}
+                onVerified={() => {
+                  setShowVerificationGate(false);
+                  executeLogin(email, password);
+                }}
+                onBypass={() => {
+                  setShowVerificationGate(false);
+                  executeLogin(email, password);
+                }}
+              />
+            </Suspense>
           </div>
         </div>
       )}

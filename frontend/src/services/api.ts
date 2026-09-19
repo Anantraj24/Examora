@@ -8,6 +8,8 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.
 class ApiService {
   private token: string | null = null;
   private currentUser: User | null = null;
+  private inflightGetMe: Promise<User | null> | null = null;
+  private lastVerifiedAt: number = 0;
 
   constructor() {
     this.token = localStorage.getItem('auth_token');
@@ -21,9 +23,19 @@ class ApiService {
     }
   }
 
+  getBaseUrl(): string {
+    return API_BASE_URL;
+  }
+
+  getHealthUrl(): string {
+    return API_BASE_URL.replace(/\/api\/v1\/?$/, '') + '/health';
+  }
+
   setAuth(token: string, user: User) {
     this.token = token;
     this.currentUser = user;
+    this.inflightGetMe = null;
+    this.lastVerifiedAt = Date.now();
     localStorage.setItem('auth_token', token);
     localStorage.setItem('current_user', JSON.stringify(user));
   }
@@ -31,6 +43,8 @@ class ApiService {
   logout() {
     this.token = null;
     this.currentUser = null;
+    this.inflightGetMe = null;
+    this.lastVerifiedAt = 0;
     localStorage.removeItem('auth_token');
     localStorage.removeItem('current_user');
   }
@@ -51,6 +65,23 @@ class ApiService {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
     return headers;
+  }
+
+  // Fast, non-blocking health check with strict timeout
+  async checkHealth(timeoutMs = 2500): Promise<boolean> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resp = await fetch(this.getHealthUrl(), {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      return resp.ok;
+    } catch {
+      clearTimeout(timer);
+      return false;
+    }
   }
 
   // ----------------- Auth API -----------------
@@ -120,24 +151,51 @@ class ApiService {
     return this.login(data.email, data.password);
   }
 
-  async getMe(): Promise<User | null> {
-    if (!this.token) return null;
-    try {
-      const resp = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: this.getHeaders(),
-      });
-      if (resp.ok) {
-        const user = await resp.json();
-        this.currentUser = user;
-        localStorage.setItem('current_user', JSON.stringify(user));
-        return user;
-      } else if (resp.status === 401) {
-        this.logout();
-      }
-    } catch (e) {
-      console.warn('Could not verify /auth/me with backend, using cached session', e);
+  /**
+   * Deduplicated and cached session verification.
+   * If a verification call is already inflight, returns the same promise to prevent duplicate API requests.
+   * If verified within 15 seconds, returns the verified user immediately.
+   */
+  async getMe(force = false): Promise<User | null> {
+    if (!this.token) {
+      this.currentUser = null;
+      return null;
     }
-    return this.currentUser;
+
+    const now = Date.now();
+    if (!force && this.currentUser && (now - this.lastVerifiedAt < 15000)) {
+      return this.currentUser;
+    }
+
+    if (this.inflightGetMe) {
+      return this.inflightGetMe;
+    }
+
+    this.inflightGetMe = (async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: this.getHeaders(),
+        });
+        if (resp.ok) {
+          const user = await resp.json();
+          this.currentUser = user;
+          this.lastVerifiedAt = Date.now();
+          localStorage.setItem('current_user', JSON.stringify(user));
+          return user;
+        } else if (resp.status === 401 || resp.status === 403) {
+          // Token expired or invalid
+          this.logout();
+          return null;
+        }
+      } catch (e) {
+        console.warn('Could not verify /auth/me with backend, using cached session if available', e);
+      } finally {
+        this.inflightGetMe = null;
+      }
+      return this.currentUser;
+    })();
+
+    return this.inflightGetMe;
   }
 
   // ----------------- Exams API -----------------

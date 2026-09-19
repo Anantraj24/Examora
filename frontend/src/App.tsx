@@ -1,18 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from './components/DashboardLayout';
-import { StudentDashboardView } from './components/StudentDashboardView';
-import { ExamListView } from './components/ExamListView';
-import { ExamSessionView } from './components/ExamSessionView';
-import { ProctorMissionControl } from './components/ProctorMissionControl';
-import { ExaminerGradingStudio } from './components/ExaminerGradingStudio';
-import { StudentResultsView } from './components/StudentResultsView';
-import { QuestionBankManager } from './components/QuestionBankManager';
-import { ExamBuilderView } from './components/ExamBuilderView';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { LoginPage } from './components/LoginPage';
-import { ScheduleCalendarView } from './components/ScheduleCalendarView';
 import { User, UserRole } from './types';
 import { api } from './services/api';
 import { BookOpen, Award, Sparkles, MessageSquare, Settings as SettingsIcon } from 'lucide-react';
+
+// Code-split authenticated dashboard & examination views to keep the initial login bundle ultra-fast & interactive
+const DashboardLayout = lazy(() => import('./components/DashboardLayout').then(m => ({ default: m.DashboardLayout })));
+const StudentDashboardView = lazy(() => import('./components/StudentDashboardView').then(m => ({ default: m.StudentDashboardView })));
+const ExamListView = lazy(() => import('./components/ExamListView').then(m => ({ default: m.ExamListView })));
+const ExamSessionView = lazy(() => import('./components/ExamSessionView').then(m => ({ default: m.ExamSessionView })));
+const ProctorMissionControl = lazy(() => import('./components/ProctorMissionControl').then(m => ({ default: m.ProctorMissionControl })));
+const ExaminerGradingStudio = lazy(() => import('./components/ExaminerGradingStudio').then(m => ({ default: m.ExaminerGradingStudio })));
+const StudentResultsView = lazy(() => import('./components/StudentResultsView').then(m => ({ default: m.StudentResultsView })));
+const QuestionBankManager = lazy(() => import('./components/QuestionBankManager').then(m => ({ default: m.QuestionBankManager })));
+const ExamBuilderView = lazy(() => import('./components/ExamBuilderView').then(m => ({ default: m.ExamBuilderView })));
+const ScheduleCalendarView = lazy(() => import('./components/ScheduleCalendarView').then(m => ({ default: m.ScheduleCalendarView })));
+
+const ViewLoadingFallback: React.FC = () => (
+  <div style={{
+    minHeight: '60vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'column',
+    gap: '12px',
+    color: '#94A3B8'
+  }}>
+    <div style={{
+      width: '32px',
+      height: '32px',
+      border: '3px solid rgba(99, 102, 241, 0.2)',
+      borderTopColor: '#6366F1',
+      borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite'
+    }} />
+    <span style={{ fontSize: '0.84rem' }}>Loading workspace...</span>
+  </div>
+);
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -23,38 +47,47 @@ export const App: React.FC = () => {
   // Initialize from persistent authentication storage
   const [currentUser, setCurrentUser] = useState<User | null>(() => api.getCurrentUser());
 
-  // Check persistent session on mount
+  // Non-blocking persistent session verification on mount
   useEffect(() => {
-    const cachedUser = api.getCurrentUser();
-    if (cachedUser && api.getToken()) {
-      api.getMe()
-        .then((user) => {
-          if (user) setCurrentUser(user);
-        })
-        .catch(() => {
-          // Token expired or invalid
-          setCurrentUser(null);
-        });
+    // If no token exists, the user is logged out: zero network overhead, immediate login interaction
+    if (!api.getToken()) {
+      setCurrentUser(null);
+      return;
     }
+
+    let isMounted = true;
+    api.getMe()
+      .then((user) => {
+        if (isMounted) {
+          setCurrentUser(user);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCurrentUser(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Health check to backend API
+  // Non-blocking background health check with strict timeout (never stalls login UI)
   useEffect(() => {
+    let isMounted = true;
     async function checkBackend() {
-      try {
-        const resp = await fetch('http://localhost:8000/health');
-        if (resp.ok) {
-          setIsConnected(true);
-        } else {
-          setIsConnected(false);
-        }
-      } catch (e) {
-        setIsConnected(false);
+      const healthy = await api.checkHealth(2500);
+      if (isMounted) {
+        setIsConnected(healthy);
       }
     }
     checkBackend();
-    const interval = setInterval(checkBackend, 8000);
-    return () => clearInterval(interval);
+    const interval = setInterval(checkBackend, 12000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleSwitchRole = async (role: UserRole) => {
@@ -97,14 +130,16 @@ export const App: React.FC = () => {
   // If candidate is actively taking an examination, render full-screen proctored environment
   if (activeSessionId && currentUser) {
     return (
-      <ExamSessionView
-        examId={activeSessionId}
-        onFinishExam={handleFinishExam}
-      />
+      <Suspense fallback={<ViewLoadingFallback />}>
+        <ExamSessionView
+          examId={activeSessionId}
+          onFinishExam={handleFinishExam}
+        />
+      </Suspense>
     );
   }
 
-  // If user is not authenticated, render the dedicated LoginPage
+  // If user is not authenticated, render the dedicated LoginPage immediately without chunk overhead
   if (!currentUser) {
     return (
       <LoginPage
@@ -124,17 +159,18 @@ export const App: React.FC = () => {
   }
 
   return (
-    <DashboardLayout
-      currentTab={currentTab}
-      setCurrentTab={(tab) => {
-        setActiveSessionId(null);
-        setCurrentTab(tab);
-      }}
-      currentUser={currentUser}
-      onSwitchRole={handleSwitchRole}
-      isConnected={isConnected}
-      onLogout={handleLogout}
-    >
+    <Suspense fallback={<ViewLoadingFallback />}>
+      <DashboardLayout
+        currentTab={currentTab}
+        setCurrentTab={(tab) => {
+          setActiveSessionId(null);
+          setCurrentTab(tab);
+        }}
+        currentUser={currentUser}
+        onSwitchRole={handleSwitchRole}
+        isConnected={isConnected}
+        onLogout={handleLogout}
+      >
       {/* 1. Main Student Dashboard (Exact 1:1 Reference Match) */}
       {currentTab === 'dashboard' && (
         <StudentDashboardView
@@ -292,6 +328,7 @@ export const App: React.FC = () => {
       )}
 
     </DashboardLayout>
+    </Suspense>
   );
 };
 
