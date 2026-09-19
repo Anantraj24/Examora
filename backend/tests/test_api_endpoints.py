@@ -655,6 +655,78 @@ async def test_notifications_lifecycle_and_read_state(client: AsyncClient):
         assert item["is_read"] is True
 
 
+@pytest.mark.asyncio
+async def test_upcoming_events_chronological_and_lifecycle(client: AsyncClient):
+    from datetime import datetime, timezone, timedelta
+
+    # 1. Register and login student
+    await client.post("/api/v1/auth/register", json={
+        "email": "events_student@examora.io",
+        "password": "password123",
+        "full_name": "Events Candidate",
+        "role": "student"
+    })
+    login_resp = await client.post("/api/v1/auth/login", json={
+        "email": "events_student@examora.io",
+        "password": "password123"
+    })
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Login examiner for event management
+    await client.post("/api/v1/auth/register", json={
+        "email": "events_admin@examora.io",
+        "password": "password123",
+        "full_name": "Events Admin Prof",
+        "role": "examiner"
+    })
+    adm_login = await client.post("/api/v1/auth/login", json={
+        "email": "events_admin@examora.io",
+        "password": "password123"
+    })
+    adm_token = adm_login.json()["access_token"]
+    adm_headers = {"Authorization": f"Bearer {adm_token}"}
+
+    # 3. Fetch upcoming events (auto-seeds realistic events)
+    resp = await client.get("/api/v1/events/upcoming", headers=headers)
+    assert resp.status_code == 200
+    events = resp.json()
+    assert len(events) >= 1
+
+    # Verify chronological order
+    for i in range(len(events) - 1):
+        d1 = datetime.fromisoformat(events[i]["start_time"])
+        d2 = datetime.fromisoformat(events[i + 1]["start_time"])
+        assert d1 <= d2
+
+    # 4. Examiner creates an event in the near future (tomorrow)
+    now = datetime.now(timezone.utc)
+    future_time = (now + timedelta(days=2)).isoformat()
+    new_evt_resp = await client.post("/api/v1/events/", json={
+        "title": "Robotics & Embedded Systems Hands-on Lab",
+        "description": "Virtual emulator lab session for real-time sensor integration.",
+        "event_type": "workshop",
+        "subject": "Robotics",
+        "start_time": future_time
+    }, headers=adm_headers)
+    assert new_evt_resp.status_code == 201
+    created_id = new_evt_resp.json()["id"]
+
+    # Verify event appears in upcoming list
+    verify_resp = await client.get("/api/v1/events/upcoming", headers=headers)
+    assert verify_resp.status_code == 200
+    assert any(e["id"] == created_id for e in verify_resp.json())
+
+    # 5. Delete event
+    del_resp = await client.delete(f"/api/v1/events/{created_id}", headers=adm_headers)
+    assert del_resp.status_code == 204
+
+    # Verify deleted event no longer returned
+    after_del_resp = await client.get("/api/v1/events/upcoming", headers=headers)
+    assert not any(e["id"] == created_id for e in after_del_resp.json())
+
+
+
 
 
 

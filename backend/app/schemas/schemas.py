@@ -356,5 +356,27 @@ class NotificationListOut(BaseModel):
     items: List[NotificationOut]
     unread_count: int
 
+# ----------------- Academic Event Schemas -----------------
+class AcademicEventBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_type: str = "exam"
+    subject: str = "Computer Science"
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    location_or_link: Optional[str] = None
+    exam_id: Optional[str] = None
+    target_role: Optional[str] = None
+
+class AcademicEventCreate(AcademicEventBase):
+    pass
+
+class AcademicEventOut(AcademicEventBase):
+    id: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 
 

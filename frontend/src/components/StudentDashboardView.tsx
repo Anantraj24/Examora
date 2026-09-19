@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronDown, MessageSquare, Phone, MoreVertical,
-  BookOpen, Clock, Calendar as CalendarIcon, ArrowRight
+  BookOpen, Clock, Calendar as CalendarIcon, ArrowRight,
+  Award, Sparkles, AlertCircle, Loader2, ExternalLink
 } from 'lucide-react';
-import { User } from '../types';
+import { User, AcademicEvent } from '../types';
+import { api } from '../services/api';
 
 interface StudentDashboardViewProps {
   currentUser: User;
@@ -18,6 +20,45 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({
 }) => {
   const [selectedMonth, setSelectedMonth] = useState('December');
   const [calendarFilter, setCalendarFilter] = useState('Today');
+  const [upcomingEvents, setUpcomingEvents] = useState<AcademicEvent[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadEvents() {
+      setIsLoadingEvents(true);
+      setEventsError(null);
+      try {
+        const events = await api.getUpcomingEvents();
+        setUpcomingEvents(events || []);
+      } catch (e: any) {
+        console.warn('Upcoming events fetch error', e);
+        setEventsError(e.message || 'Failed to load upcoming events');
+      } finally {
+        setIsLoadingEvents(false);
+      }
+    }
+    loadEvents();
+  }, [currentUser]);
+
+  const formatEventDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+    const timeString = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) return `Today · ${timeString}`;
+    if (isTomorrow) return `Tomorrow · ${timeString}`;
+    
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    return `${day} ${month} · ${timeString}`;
+  };
 
   // Performance data matching the reference image exactly
   const performanceData = [
@@ -493,72 +534,132 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({
         {/* 2. UPCOMING EVENTS CARD */}
         <div className="dash-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem 1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1E293B' }}>Upcoming events</h3>
-            <button style={{ background: 'transparent', border: 'none', color: '#3B5EDB', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1E293B' }}>Upcoming events</h3>
+              {upcomingEvents.length > 0 && (
+                <span className="badge badge-indigo" style={{ fontSize: '0.68rem', padding: '2px 7px' }}>
+                  {upcomingEvents.length}
+                </span>
+              )}
+            </div>
+            <button 
+              onClick={() => onNavigateTab('schedule')}
+              style={{ background: 'transparent', border: 'none', color: '#3B5EDB', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+            >
               See all
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            
-            {/* Event 1: Robot Fest */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 0',
-              borderBottom: '1px solid #F1F5F9'
-            }}>
-              <img 
-                src="/assets/robot_fest.jpg" 
-                alt="Robot Fest"
-                style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  The main event in your life "Robot Fest" will coming soon in...
-                </h4>
-                <p style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>
-                  14 December 2023 · 12.00 pm
-                </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Loading State */}
+            {isLoadingEvents && (
+              <div style={{ padding: '1.5rem 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                <Loader2 size={16} className="spin" color="#3B5EDB" />
+                <span style={{ fontSize: '0.82rem' }}>Loading upcoming events...</span>
               </div>
-              <button className="dash-icon-btn">
-                <MoreVertical size={16} />
-              </button>
-            </div>
+            )}
 
-            {/* Event 2: Minecraft webinar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 0'
-            }}>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #0EA5E9, #0284C7)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FFFFFF'
-              }}>
-                <BookOpen size={18} />
+            {/* Error State */}
+            {!isLoadingEvents && eventsError && (
+              <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', borderRadius: '8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertCircle size={14} />
+                <span>{eventsError}</span>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B' }}>
-                  Webinar of new tools in Minecraft
-                </h4>
-                <p style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>
-                  21 December 2023 · 11.00 pm
-                </p>
-              </div>
-              <button className="dash-icon-btn">
-                <MoreVertical size={16} />
-              </button>
-            </div>
+            )}
 
+            {/* Empty State */}
+            {!isLoadingEvents && !eventsError && upcomingEvents.length === 0 && (
+              <div style={{ padding: '1.5rem 0', textAlign: 'center', color: '#94A3B8' }}>
+                <CalendarIcon size={24} style={{ margin: '0 auto 6px auto', opacity: 0.5 }} />
+                <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>No upcoming events</div>
+                <div style={{ fontSize: '0.72rem', marginTop: '2px' }}>Check back soon or explore the Master Schedule.</div>
+              </div>
+            )}
+
+            {/* Dynamic Real Events List */}
+            {!isLoadingEvents && upcomingEvents.map((evt, idx) => {
+              const isExam = evt.event_type === 'exam';
+              const isWebinar = evt.event_type === 'webinar';
+              const isReview = evt.event_type === 'review';
+
+              const iconBg = isExam 
+                ? 'linear-gradient(135deg, #10B981, #059669)'
+                : isWebinar 
+                ? 'linear-gradient(135deg, #0EA5E9, #0284C7)'
+                : isReview 
+                ? 'linear-gradient(135deg, #8B5CF6, #6366F1)'
+                : 'linear-gradient(135deg, #F59E0B, #D97706)';
+
+              return (
+                <div 
+                  key={evt.id || idx}
+                  onClick={() => {
+                    if (isExam && evt.exam_id && onStartExam) {
+                      onStartExam(evt.exam_id);
+                    } else if (isExam) {
+                      onNavigateTab('assessments');
+                    } else {
+                      onNavigateTab('schedule');
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '8px 0',
+                    borderBottom: idx < upcomingEvents.length - 1 ? '1px solid #F1F5F9' : 'none',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease'
+                  }}
+                  className="dash-hover-item"
+                >
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: iconBg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                  }}>
+                    {isExam ? <Award size={18} /> : isWebinar ? <BookOpen size={18} /> : isReview ? <Sparkles size={18} /> : <Clock size={18} />}
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#1E293B',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {evt.title}
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>
+                        {formatEventDate(evt.start_time)}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>•</span>
+                      <span style={{ fontSize: '0.68rem', color: '#6366F1', fontWeight: 600 }}>
+                        {evt.subject}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button 
+                    className="dash-icon-btn" 
+                    title="View event details"
+                    style={{ flexShrink: 0 }}
+                  >
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
 

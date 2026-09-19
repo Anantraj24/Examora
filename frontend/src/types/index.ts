@@ -275,3 +275,18 @@ export interface NotificationListResponse {
   items: AppNotification[];
   unread_count: number;
 }
+
+export interface AcademicEvent {
+  id: string;
+  title: string;
+  description?: string;
+  event_type: 'exam' | 'webinar' | 'workshop' | 'deadline' | 'review' | string;
+  subject: string;
+  start_time: string;
+  end_time?: string;
+  location_or_link?: string;
+  exam_id?: string;
+  target_role?: string;
+  created_at: string;
+}
+

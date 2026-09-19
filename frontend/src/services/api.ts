@@ -2,7 +2,7 @@ import {
   User, Exam, Question, StudentExamPaper,
   GradingQueueItem, ExamResultData, UserRole, CourseMaterial,
   ForumPost, ForumReply, ForumPaginatedResponse,
-  AppNotification, NotificationListResponse
+  AppNotification, NotificationListResponse, AcademicEvent
 } from '../types';
 
 
@@ -536,6 +536,15 @@ class ApiService {
       headers: this.getHeaders(),
     });
     if (!resp.ok) throw new Error('Failed to mark all notifications as read');
+    return resp.json();
+  }
+
+  // ----------------- Academic & Exam Events API -----------------
+  async getUpcomingEvents(limit: number = 10): Promise<AcademicEvent[]> {
+    const resp = await fetch(`${API_BASE_URL}/events/upcoming?limit=${limit}`, {
+      headers: this.getHeaders(),
+    });
+    if (!resp.ok) throw new Error('Failed to fetch upcoming events');
     return resp.json();
   }
 }

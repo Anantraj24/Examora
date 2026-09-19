@@ -261,3 +261,20 @@ class Notification(Base):
     target_route = Column(String(100), nullable=True)  # assessments, schedule, results, materials, forum, grading, questions
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=get_utc_now)
+
+
+class AcademicEvent(Base):
+    __tablename__ = "academic_events"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    event_type = Column(String(50), default="exam")  # exam, webinar, workshop, deadline, review
+    subject = Column(String(100), default="Computer Science")
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    location_or_link = Column(String(255), nullable=True)
+    exam_id = Column(String(36), ForeignKey("exams.id"), nullable=True)
+    target_role = Column(String(50), nullable=True)  # student, examiner, or None for all
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+
